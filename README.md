@@ -46,12 +46,14 @@ image, dataset path (`/mnt/Apps/Site/Pov/Albums`), and public URL
 
 Use a long, unique admin password. Point `pov.fdmedia.studio` at your reverse
 proxy, configure a valid TLS certificate, and route requests to the NAS on port
-3000. The proxy must forward the `X-Forwarded-Proto: https` header so secure
+3001. The proxy must forward the `X-Forwarded-Proto: https` header so secure
 admin cookies work. Do not expose the app's plain HTTP port directly to the
 Internet.
 
-The app listens on port `3000`. Open `https://pov.fdmedia.studio/admin` and
-sign in with the password configured as `ADMIN_PASSWORD`. No username is
+The app listens on container port `3000`, published on NAS port `3001` to avoid
+conflicts with other apps. Open `http://YOUR_NAS_LAN_IP:3001/admin` on your
+local network, or `https://pov.fdmedia.studio/admin` through your reverse proxy,
+and sign in with the password configured as `ADMIN_PASSWORD`. No username is
 required.
 
 ### Updating
