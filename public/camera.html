@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#08080a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="FDMS Albums">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/pwa-icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <title>Cameră eveniment</title>
+</head>
+<body class="guest-page">
+<main>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="FIXDUOMEDIA Studios"><img src="/fdmsalb.png" alt="FIXDUOMEDIA Studios"></a>
+    <span class="topbar-note">FOTO / VIDEO <span aria-hidden="true">•</span> EVENIMENTE</span>
+  </header>
+
+  <section class="guest-heading">
+    <p class="eyebrow"><span class="status-dot"></span> ALBUM DE EVENIMENT</p>
+    <h1 id="title">SE ÎNCARCĂ…</h1>
+    <p class="mut">Surprinde momentul din perspectiva ta. Fotografiile și videoclipurile ajung direct în album.</p>
+  </section>
+
+  <section class="camera-card card" aria-label="Cameră foto și video">
+    <p id="scheduleMessage" class="schedule-message" role="status">Se verifică programul evenimentului…</p>
+    <div class="camera-topline">
+      <span class="camera-live"><span class="status-dot"></span> CAMERĂ</span>
+      <button id="switchCamera" class="btn btn-small btn-outline" type="button" hidden>ÎNTOARCE CAMERA</button>
+    </div>
+    <div class="camera-view" id="cameraView">
+      <video id="preview" autoplay muted playsinline aria-label="Previzualizare cameră"></video>
+      <div class="camera-placeholder" id="cameraPlaceholder">
+        <span class="camera-symbol" aria-hidden="true">◉</span>
+        <p>Camera este pregătită pentru următorul moment.</p>
+      </div>
+      <span id="recordingBadge" class="recording-badge" hidden><span></span> REC <time id="recordingTime">00:00</time></span>
+    </div>
+    <div class="camera-controls">
+      <button id="photoButton" class="shutter-button" type="button" aria-label="Fă fotografie"><span class="photo-shutter"></span></button>
+      <button id="recordButton" class="record-button" type="button"><span class="record-dot"></span><span id="recordLabel">FILMEAZĂ</span></button>
+      <button id="startCamera" class="btn btn-small btn-outline" type="button">PORNEȘTE CAMERA</button>
+    </div>
+    <p id="cameraStatus" class="camera-status mut" role="status">Pornește camera pentru fotografii și filmări consecutive.</p>
+    <p id="cameraError" class="form-error" role="alert"></p>
+    <div class="fallback-controls">
+      <label class="btn btn-small btn-outline" for="cameraPhoto">FĂ O FOTOGRAFIE</label>
+      <input id="cameraPhoto" type="file" accept="image/*" capture="environment" hidden>
+      <label class="btn btn-small btn-outline" for="cameraVideo">FILMEAZĂ VIDEO</label>
+      <input id="cameraVideo" type="file" accept="video/*" capture="environment" hidden>
+      <label class="btn btn-small btn-outline" for="pick">ALEGE DIN GALERIE</label>
+      <input id="pick" type="file" accept="image/*,video/*" multiple hidden>
+    </div>
+    <p class="camera-hint">Pentru camera live, deschide albumul prin HTTPS. În browserul instalat pe ecranul principal, camera poate rămâne gata pentru mai multe cadre.</p>
+  </section>
+
+  <section class="uploads-section">
+    <div class="section-heading"><div><p class="eyebrow">MOMENTELE TALE</p><h2>Încărcate de pe acest telefon</h2></div><span id="uploadCount" class="file-count">0</span></div>
+    <p id="uploadStatus" class="mut" role="status" aria-live="polite"></p>
+    <div class="grid" id="mine"></div>
+  </section>
+
+  <footer class="footer"><span class="footer-brand">FIXDUOMEDIA STUDIOS</span> <span aria-hidden="true">•</span> FIECARE CADRU CONTEAZĂ</footer>
+</main>
+<script>
+const albumId = location.pathname.split('/')[2];
+const preview = document.getElementById('preview');
+const photoButton = document.getElementById('photoButton');
+const recordButton = document.getElementById('recordButton');
+const recordLabel = document.getElementById('recordLabel');
+const startCameraButton = document.getElementById('startCamera');
+const switchCameraButton = document.getElementById('switchCamera');
+const cameraStatus = document.getElementById('cameraStatus');
+const cameraError = document.getElementById('cameraError');
+const recordingBadge = document.getElementById('recordingBadge');
+const recordingTime = document.getElementById('recordingTime');
+const uploadStatus = document.getElementById('uploadStatus');
+const uploadCount = document.getElementById('uploadCount');
+const mine = document.getElementById('mine');
+let stream;
+let recorder;
+let recordingChunks = [];
+let recordStartedAt = 0;
+let recordTimer;
+let facingMode = 'environment';
+let uploadQueue = [];
+let uploading = false;
+let sent = 0;
+let uploadWindowOpen = false;
+let opensAt = 0;
+let closesAt = 0;
+let windowRefreshTimer;
+
+function canCaptureNow() {
+  const now = Date.now();
+  return uploadWindowOpen && now >= opensAt && now < closesAt;
+}
+
+function updateCameraControls() {
+  const available = canCaptureNow();
+  photoButton.disabled = !available || !stream;
+  recordButton.disabled = !available || !stream;
+  document.getElementById('pick').disabled = !available;
+  document.getElementById('cameraPhoto').disabled = !available;
+  document.getElementById('cameraVideo').disabled = !available;
+  startCameraButton.disabled = !available;
+  if (!available && stream) {
+    if (recorder && recorder.state === 'recording') recorder.stop();
+    stopStream();
+    cameraStatus.textContent = 'Camera este oprită în afara programului.';
+  }
+}
+
+async function loadAlbum() {
+  try {
+    const response = await fetch('/api/a/' + albumId);
+    if (!response.ok) throw new Error('Nu am putut deschide albumul.');
+    const album = await response.json();
+    document.getElementById('title').textContent = album.name;
+    document.title = album.name + ' | FDMS Albums';
+    applyUploadWindow(album);
+  } catch (error) {
+    cameraError.textContent = error.message;
+  }
+}
+
+function applyUploadWindow(status) {
+  uploadWindowOpen = status.canUpload;
+  opensAt = status.opensAt || 0;
+  closesAt = status.closesAt || 0;
+  const message = document.getElementById('scheduleMessage');
+  if (status.reason === 'open') {
+    const closeTime = new Intl.DateTimeFormat('ro-RO', { timeZone: status.schedule.timeZone, hour: '2-digit', minute: '2-digit' }).format(new Date(status.closesAt));
+    message.textContent = 'Program activ până la ' + closeTime + ' (' + status.schedule.timeZone + ').';
+    message.className = 'schedule-message is-open';
+  } else if (status.reason === 'not-open') {
+    message.textContent = 'Programul începe pe ' + status.schedule.eventDate + ' la ' + status.schedule.startTime + ' (' + status.schedule.timeZone + ').';
+    message.className = 'schedule-message';
+  } else if (status.reason === 'closed') {
+    message.textContent = 'Programul de fotografiere și încărcare s-a încheiat.';
+    message.className = 'schedule-message';
+  } else if (status.reason === 'invalid-local-time') {
+    message.textContent = 'Ora configurată nu există în fusul orar ales. Contactează organizatorul.';
+    message.className = 'schedule-message is-error';
+  } else {
+    message.textContent = 'Organizatorul nu a configurat încă programul evenimentului.';
+    message.className = 'schedule-message';
+  }
+  updateCameraControls();
+  if (canCaptureNow()) processQueue();
+}
+
+async function refreshUploadWindow() {
+  try {
+    const response = await fetch('/api/a/' + albumId);
+    if (!response.ok) throw new Error('Nu am putut verifica programul albumului.');
+    applyUploadWindow(await response.json());
+  } catch (error) {
+    uploadWindowOpen = false;
+    opensAt = 0;
+    closesAt = 0;
+    updateCameraControls();
+    cameraError.textContent = error.message;
+  }
+}
+
+function stopStream() {
+  if (stream) stream.getTracks().forEach(track => track.stop());
+  stream = undefined;
+  preview.srcObject = null;
+  preview.classList.remove('is-live');
+  document.getElementById('cameraPlaceholder').hidden = false;
+  switchCameraButton.hidden = true;
+  startCameraButton.hidden = false;
+}
+
+async function startCamera() {
+  cameraError.textContent = '';
+  if (!canCaptureNow()) {
+    cameraError.textContent = 'Camera este disponibilă doar în programul stabilit de organizator.';
+    return;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    cameraError.textContent = 'Camera live necesită HTTPS. Poți folosi butoanele pentru camera telefonului de mai jos.';
+    return;
+  }
+  startCameraButton.disabled = true;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: facingMode } },
+      audio: true
+    });
+    if (!canCaptureNow()) {
+      stopStream();
+      cameraStatus.textContent = 'Camera este oprită în afara programului.';
+      return;
+    }
+    preview.srcObject = stream;
+    await preview.play();
+    preview.classList.add('is-live');
+    document.getElementById('cameraPlaceholder').hidden = true;
+    switchCameraButton.hidden = false;
+    startCameraButton.hidden = true;
+    cameraStatus.textContent = 'Camera este activă. Fă mai multe fotografii și filmări una după alta.';
+    updateCameraControls();
+  } catch (error) {
+    const message = error.name === 'NotAllowedError'
+      ? 'Permite accesul la cameră și microfon pentru a continua.'
+      : error.name === 'NotFoundError'
+        ? 'Nu am găsit o cameră disponibilă pe acest dispozitiv.'
+        : 'Camera nu a pornit. Verifică permisiunile browserului și încearcă din nou.';
+    cameraError.textContent = message;
+    startCameraButton.hidden = false;
+  } finally {
+    updateCameraControls();
+  }
+}
+
+function enqueue(file) {
+  const url = URL.createObjectURL(file);
+  const item = document.createElement('a');
+  item.className = 'upload-item is-uploading';
+  item.href = url;
+  item.target = '_blank';
+  item.rel = 'noreferrer';
+  item.setAttribute('aria-label', 'Deschide fișierul încărcat');
+  const media = document.createElement(file.type.startsWith('video/') ? 'video' : 'img');
+  media.src = url;
+  if (media.tagName === 'VIDEO') media.muted = true;
+  item.append(media);
+  const badge = document.createElement('span');
+  badge.className = 'upload-badge';
+  badge.textContent = 'ÎN COADĂ';
+  item.append(badge);
+  mine.prepend(item);
+  uploadQueue.push({ file, item, badge });
+  uploadCount.textContent = String(sent + uploadQueue.length);
+  processQueue();
+}
+
+async function processQueue() {
+  if (uploading || !uploadQueue.length || !canCaptureNow()) return;
+  uploading = true;
+  const upload = uploadQueue.shift();
+  upload.badge.textContent = 'SE ÎNCARCĂ';
+  uploadStatus.textContent = 'Se încarcă ' + upload.file.name + '…';
+  const data = new FormData();
+  data.append('photos', upload.file, upload.file.name);
+  const request = new XMLHttpRequest();
+  request.upload.onprogress = event => {
+    if (event.lengthComputable) uploadStatus.textContent = 'Se încarcă… ' + Math.round(event.loaded / event.total * 100) + '%';
+  };
+  request.onload = () => {
+    if (request.status >= 200 && request.status < 300) {
+      upload.item.classList.remove('is-uploading');
+      upload.item.classList.add('is-uploaded');
+      upload.badge.textContent = 'ÎNCĂRCAT';
+      sent += 1;
+      uploadCount.textContent = String(sent + uploadQueue.length);
+      uploadStatus.textContent = 'Încărcat cu succes ✓';
+    } else {
+      upload.item.classList.remove('is-uploading');
+      upload.item.classList.add('is-failed');
+      upload.badge.textContent = 'REÎNCEARCĂ';
+      upload.item.addEventListener('click', event => {
+        event.preventDefault();
+        upload.item.remove();
+        enqueue(upload.file);
+      }, { once: true });
+      uploadStatus.textContent = 'Încărcarea a eșuat. Atinge previzualizarea pentru a reîncerca.';
+    }
+    uploading = false;
+    processQueue();
+  };
+  request.onerror = () => {
+    upload.item.classList.remove('is-uploading');
+    upload.item.classList.add('is-failed');
+    upload.badge.textContent = 'REÎNCEARCĂ';
+    upload.item.addEventListener('click', event => {
+      event.preventDefault();
+      upload.item.remove();
+      enqueue(upload.file);
+    }, { once: true });
+    uploadStatus.textContent = 'Conexiune întreruptă. Atinge previzualizarea pentru a reîncerca.';
+    uploading = false;
+    processQueue();
+  };
+  request.open('POST', '/api/a/' + albumId + '/photos');
+  request.send(data);
+}
+
+function addFiles(files) {
+  if (!canCaptureNow()) {
+    cameraError.textContent = 'Fotografiile și videoclipurile pot fi încărcate doar în programul evenimentului.';
+    return;
+  }
+  Array.from(files).forEach(file => {
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+    enqueue(file);
+  });
+}
+
+function takePhoto() {
+  if (!canCaptureNow() || !stream || !preview.videoWidth) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = preview.videoWidth;
+  canvas.height = preview.videoHeight;
+  canvas.getContext('2d').drawImage(preview, 0, 0);
+  canvas.toBlob(blob => {
+    if (!blob) {
+      cameraError.textContent = 'Nu am putut salva fotografia. Încearcă din nou.';
+      return;
+    }
+    addFiles([new File([blob], 'fdms-' + new Date().toISOString().replace(/[:.]/g, '-') + '.jpg', { type: 'image/jpeg' })]);
+  }, 'image/jpeg', .92);
+}
+
+function getRecordingType() {
+  const types = ['video/mp4;codecs=avc1.42E01E', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  return types.find(type => MediaRecorder.isTypeSupported(type)) || '';
+}
+
+function updateRecordingTime() {
+  const seconds = Math.floor((Date.now() - recordStartedAt) / 1000);
+  recordingTime.textContent = String(Math.floor(seconds / 60)).padStart(2, '0') + ':' + String(seconds % 60).padStart(2, '0');
+}
+
+function toggleRecording() {
+  cameraError.textContent = '';
+  if (!canCaptureNow()) {
+    cameraError.textContent = 'Filmarea este disponibilă doar în programul stabilit de organizator.';
+    return;
+  }
+  if (recorder && recorder.state === 'recording') {
+    recorder.stop();
+    return;
+  }
+  if (!stream || !window.MediaRecorder) {
+    cameraError.textContent = 'Filmarea din aplicație nu este disponibilă în acest browser. Folosește butonul „FILMEAZĂ VIDEO” de mai jos.';
+    return;
+  }
+  try {
+    const mimeType = getRecordingType();
+    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recordingChunks = [];
+    recorder.ondataavailable = event => { if (event.data.size) recordingChunks.push(event.data); };
+    recorder.onerror = () => { cameraError.textContent = 'Filmarea s-a oprit din cauza unei erori.'; finishRecordingUI(); };
+    recorder.onstop = () => {
+      const type = recorder.mimeType || mimeType || 'video/webm';
+      const extension = type.includes('mp4') ? 'mp4' : 'webm';
+      const video = new File(recordingChunks, 'fdms-' + new Date().toISOString().replace(/[:.]/g, '-') + '.' + extension, { type });
+      if (video.size) addFiles([video]);
+      finishRecordingUI();
+    };
+    recorder.start(1000);
+    recordStartedAt = Date.now();
+    recordingBadge.hidden = false;
+    recordButton.classList.add('is-recording');
+    recordLabel.textContent = 'OPREȘTE';
+    photoButton.disabled = true;
+    recordTimer = setInterval(updateRecordingTime, 500);
+    updateRecordingTime();
+  } catch {
+    cameraError.textContent = 'Nu am putut porni filmarea. Verifică permisiunile pentru cameră și microfon.';
+  }
+}
+
+function finishRecordingUI() {
+  clearInterval(recordTimer);
+  recordingBadge.hidden = true;
+  recordButton.classList.remove('is-recording');
+  recordLabel.textContent = 'FILMEAZĂ';
+  updateCameraControls();
+}
+
+async function switchCamera() {
+  facingMode = facingMode === 'environment' ? 'user' : 'environment';
+  stopStream();
+  await startCamera();
+}
+
+startCameraButton.addEventListener('click', startCamera);
+switchCameraButton.addEventListener('click', switchCamera);
+photoButton.addEventListener('click', takePhoto);
+recordButton.addEventListener('click', toggleRecording);
+document.getElementById('pick').addEventListener('change', event => {
+  addFiles(event.target.files);
+  event.target.value = '';
+});
+document.getElementById('cameraPhoto').addEventListener('change', event => {
+  addFiles(event.target.files);
+  event.target.value = '';
+});
+document.getElementById('cameraVideo').addEventListener('change', event => {
+  addFiles(event.target.files);
+  event.target.value = '';
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+photoButton.disabled = true;
+recordButton.disabled = true;
+loadAlbum();
+windowRefreshTimer = setInterval(refreshUploadWindow, 15000);
+setInterval(updateCameraControls, 1000);
+
+window.addEventListener('pagehide', () => {
+  if (recorder && recorder.state === 'recording') recorder.stop();
+  stopStream();
+  clearInterval(windowRefreshTimer);
+  mine.querySelectorAll('a').forEach(item => URL.revokeObjectURL(item.href));
+});
+</script>
+</body>
+</html>

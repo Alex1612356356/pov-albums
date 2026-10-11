@@ -50,7 +50,7 @@ button, .btn {
 button:hover, .btn:hover { border-color: #c4c4ca; color: #050506; background: #c4c4ca; transform: translateY(-1px); }
 button:disabled { cursor: wait; opacity: .6; transform: none; }
 button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid white; outline-offset: 4px; }
-input[type="text"], input[type="password"] {
+input[type="text"], input[type="password"], input[type="date"], input[type="time"] {
   width: 100%;
   min-height: 48px;
   padding: 11px 14px;
@@ -120,6 +120,20 @@ input::placeholder { color: #686872; }
 .create-icon { flex: 0 0 auto; font-size: 1.35rem; }
 .create-controls { display: flex; gap: 10px; }
 .create-controls input { flex: 1; min-width: 180px; }
+.schedule-label { margin: 19px 0 8px; color: #c4c4ca; font-size: .72rem; font-weight: 700; letter-spacing: .12em; }
+.schedule-fields { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.schedule-fields label, .schedule-edit-form label { display: grid; gap: 6px; color: var(--muted); font-size: .78rem; }
+.schedule-fields input, .schedule-edit-form input { min-width: 0; }
+.schedule-hint { margin: 8px 0; font-size: .8rem; }
+.schedule-summary { margin: 11px 0 0; color: #b9b9c1; font-size: .79rem; }
+.schedule-summary.is-error { color: var(--danger); }
+.schedule-editor { margin-top: 14px; border-top: 1px solid var(--line); }
+.schedule-editor summary { padding-top: 12px; color: #ceced4; cursor: pointer; font-size: .7rem; font-weight: 700; letter-spacing: .1em; }
+.schedule-edit-form { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding-top: 12px; }
+.schedule-edit-form button, .schedule-edit-form .form-error { grid-column: 1 / -1; justify-self: start; }
+.schedule-message { margin: 10px 0 15px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 7px; color: #c1c1c8; background: #0c0c0f; font-size: .83rem; }
+.schedule-message.is-open { border-color: rgb(168 213 180 / 30%); color: var(--green); background: rgb(168 213 180 / 5%); }
+.schedule-message.is-error { border-color: rgb(255 170 163 / 25%); color: var(--danger); }
 .album-list { display: grid; gap: 14px; }
 .album-card { display: flex; align-items: center; gap: 22px; margin: 0; padding: 18px; }
 .album-qr {
@@ -220,6 +234,13 @@ input::placeholder { color: #686872; }
 .install-copy p { margin: 0; font-size: .8rem; }
 .install-icon { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: white; font-size: 1.2rem; }
 .install-help { margin: -7px 0 0; }
+.install-hero { max-width: 780px; padding: clamp(60px, 11vw, 120px) 0 24px; }
+.install-hero .eyebrow { display: flex; align-items: center; gap: 9px; }
+.install-hero h1 { overflow-wrap: anywhere; font-size: clamp(2.6rem, 8vw, 6rem); }
+.install-page .install-card { align-items: start; flex-direction: column; gap: 16px; }
+.install-page .install-card > .btn { width: 100%; }
+.install-page .install-copy h2 { font-family: Syne, sans-serif; font-size: 1.2rem; }
+.install-page .install-help:empty { display: none; }
 .uploads-section { margin-top: 46px; }
 .uploads-section .section-heading { align-items: center; }
 .uploads-section h2 { font-size: clamp(1.25rem, 3vw, 1.8rem); letter-spacing: -.035em; }
@@ -245,6 +266,7 @@ body:not(.admin-page) .mut { color: var(--muted); }
   .hero .eyebrow { font-size: .63rem; }
   .guest-page main { padding-top: 16px; }
   .guest-heading { padding-top: 44px; }
+  .schedule-fields, .schedule-edit-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .camera-card { padding: 12px; }
   .camera-view { min-height: 200px; }
   .camera-controls { gap: 13px; }

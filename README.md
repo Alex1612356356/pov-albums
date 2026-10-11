@@ -3,13 +3,24 @@
 FDMS-branded event albums: create an album, share its guest QR/link for photo
 and video uploads, and view the private gallery.
 
-The guest album page is installable as a Progressive Web App, with a shortcut
-that opens the specific album. Guests can use the live camera for consecutive
-photos and videos, or the phone's camera and photo library pickers; captured
-files upload to the album in order. Live camera, service workers, and browser
-install prompts require HTTPS (or localhost). On iPhone and iPad, use Safari's
-**Share → Add to Home Screen**. Browsers require a user action to approve an
-install; they do not allow a site to silently add a home-screen shortcut.
+The event QR code opens an install page. Once added to the phone's home screen,
+the event-specific shortcut opens a camera-first page for consecutive photos
+and videos, or the phone's camera and photo library pickers. Guests only see
+previews of files selected or captured on their own device; there is no guest
+gallery or guest-facing upload list. The couple's separate gallery link is
+private and should only be shared with them.
+
+Each album has one event date, a start and end time, and an IANA time zone
+(for example, `Europe/Bucharest`). Camera controls and uploads are available
+only during that interval; the server enforces the same schedule. An end time
+earlier than the start time is treated as an overnight event. Local times
+skipped or repeated by a daylight-saving transition are rejected to avoid an
+ambiguous upload window.
+
+Live camera, service workers, and browser install prompts require HTTPS (or
+localhost). On iPhone and iPad, use Safari's **Share → Add to Home Screen**.
+Browsers require a user action to approve an install; they do not allow a site
+to silently add a home-screen shortcut.
 
 ## TrueNAS SCALE deployment
 
@@ -95,7 +106,8 @@ the Custom App definition above and mount the dataset directly.
 
 - `server.js` — Express server, uploads, QR generation, and ZIP downloads
 - `public/admin.html` — album management dashboard
-- `public/guest.html` — guest photo/video upload page
+- `public/guest.html` — event install page linked from the QR code
+- `public/camera.html` — event-specific camera and upload page
 - `public/gallery.html` — private gallery
 - `public/style.css` — shared FDMS visual styling
 - `public/fdmsalb.png` — FIXDUOMEDIA Studios logo

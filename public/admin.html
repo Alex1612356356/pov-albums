@@ -44,6 +44,16 @@
         <div class="create-copy"><span class="create-icon" aria-hidden="true">＋</span><div><h3>Album nou</h3><p class="mut">Creează un album pentru următorul tău eveniment.</p></div></div>
         <div class="create-controls">
           <input type="text" id="albumName" name="name" maxlength="100" placeholder="ex. Nunta Ana și Mihai" required>
+        </div>
+        <p class="schedule-label">PROGRAM EVENIMENT — O SINGURĂ DATĂ</p>
+        <div class="schedule-fields">
+          <label>Data evenimentului<input type="date" name="eventDate" required></label>
+          <label>Începe la<input type="time" name="startTime" required></label>
+          <label>Se încheie la<input type="time" name="endTime" required></label>
+          <label>Fus orar IANA<input type="text" name="timeZone" value="Europe/Bucharest" placeholder="Europe/Bucharest" required></label>
+        </div>
+        <p class="mut schedule-hint">În afara acestui interval, camera și încărcările sunt blocate automat. Orele peste miezul nopții sunt acceptate; la schimbarea orei, alege o oră locală care nu lipsește și nu se repetă.</p>
+        <div class="create-controls">
           <button class="btn" type="submit">CREEAZĂ ALBUM <span aria-hidden="true">→</span></button>
         </div>
         <p id="createError" class="form-error" role="alert"></p>
@@ -61,6 +71,11 @@ const loginError = document.getElementById('loginError');
 const createForm = document.getElementById('createForm');
 const createError = document.getElementById('createError');
 const list = document.getElementById('list');
+
+function todayLocalDate() {
+  const now = new Date();
+  return [now.getFullYear(), String(now.getMonth() + 1).padStart(2, '0'), String(now.getDate()).padStart(2, '0')].join('-');
+}
 
 async function request(url, options) {
   const response = await fetch(url, options);
@@ -87,12 +102,30 @@ function makeAlbumCard(album) {
   card.className = 'album-card card';
   card.innerHTML = '<img class="album-qr" src="/admin/qr/' + album.id + '.png" alt="QR code for guest uploads">' +
     '<div class="album-details"><div class="album-title-row"><div><p class="eyebrow">ALBUM DE EVENIMENT</p><h3></h3></div><span class="file-count">' + album.count + ' ' + (album.count === 1 ? 'fișier' : 'fișiere') + '</span></div>' +
+    '<p class="schedule-summary"></p>' +
     '<p class="share-label">LINK PENTRU INVITAȚI</p><a class="share-link" href="' + guestUrl + '">' + guestUrl + '</a>' +
     '<div class="album-actions"><a class="btn btn-small" href="/admin/qr/' + album.id + '.png?download=1">DESCARCĂ QR</a>' +
     '<a class="btn btn-small btn-outline" href="' + galleryUrl + '">DESCHIDE GALERIA</a>' +
     '<button class="btn btn-small btn-outline" type="button" data-copy="' + galleryUrl + '">COPIAZĂ LINK PRIVAT</button>' +
-    '<button class="btn btn-small btn-danger" type="button" data-delete="' + album.id + '">ȘTERGE</button></div></div>';
+    '<button class="btn btn-small btn-danger" type="button" data-delete="' + album.id + '">ȘTERGE</button></div>' +
+    '<details class="schedule-editor"><summary>MODIFICĂ PROGRAMUL</summary><form class="schedule-edit-form" data-id="' + album.id + '">' +
+    '<label>Data<input type="date" name="eventDate" required></label>' +
+    '<label>Începe<input type="time" name="startTime" required></label>' +
+    '<label>Se încheie<input type="time" name="endTime" required></label>' +
+    '<label>Fus orar IANA<input type="text" name="timeZone" required></label>' +
+    '<button class="btn btn-small" type="submit">SALVEAZĂ PROGRAMUL</button><p class="form-error" role="alert"></p></form></details></div>';
   card.querySelector('h3').textContent = album.name;
+  const summary = card.querySelector('.schedule-summary');
+  const schedule = album.schedule;
+  if (schedule) {
+    summary.textContent = 'PROGRAM: ' + schedule.eventDate + ' · ' + schedule.startTime + '–' + schedule.endTime + ' · ' + schedule.timeZone;
+    const form = card.querySelector('.schedule-edit-form');
+    for (const field of ['eventDate', 'startTime', 'endTime', 'timeZone']) form.elements[field].value = schedule[field];
+  } else {
+    summary.textContent = 'PROGRAM NESETAT — camera și încărcările sunt blocate până la configurare.';
+    summary.classList.add('is-error');
+    card.querySelector('.schedule-editor summary').textContent = 'CONFIGUREAZĂ PROGRAMUL';
+  }
   return card;
 }
 
@@ -147,15 +180,36 @@ createForm.addEventListener('submit', async event => {
   event.preventDefault();
   createError.textContent = '';
   try {
+    const formData = new FormData(createForm);
     await request('/api/admin/albums', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: document.getElementById('albumName').value })
+      body: JSON.stringify(Object.fromEntries(formData))
     });
     createForm.reset();
+    createForm.elements.timeZone.value = 'Europe/Bucharest';
+    createForm.elements.eventDate.value = todayLocalDate();
     await renderAlbums();
   } catch (error) {
     createError.textContent = error.message;
+  }
+});
+
+list.addEventListener('submit', async event => {
+  const form = event.target.closest('.schedule-edit-form');
+  if (!form) return;
+  event.preventDefault();
+  const error = form.querySelector('.form-error');
+  error.textContent = '';
+  try {
+    await request('/api/admin/albums/' + form.dataset.id + '/schedule', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.fromEntries(new FormData(form)))
+    });
+    await renderAlbums();
+  } catch (requestError) {
+    error.textContent = requestError.message;
   }
 });
 
@@ -191,6 +245,7 @@ document.getElementById('logout').addEventListener('click', async () => {
   }
 });
 
+createForm.elements.eventDate.value = todayLocalDate();
 loadDashboard();
 </script>
 </body>

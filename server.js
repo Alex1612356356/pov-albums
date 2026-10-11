@@ -17,6 +17,77 @@ const rid = (n) => crypto.randomBytes(n).toString('hex');
 const base = (req) => process.env.BASE_URL || `${req.headers['x-forwarded-proto'] || req.protocol}://${req.get('host')}`;
 const dir = (a) => path.join(DATA, 'uploads', a.id);
 
+const validTimeZone = (timeZone) => {
+  try {
+    new Intl.DateTimeFormat('en', { timeZone }).format();
+    return true;
+  } catch {
+    return false;
+  }
+};
+const localTimeCandidates = (date, time, timeZone) => {
+  const [year, month, day] = date.split('-').map(Number);
+  const [hour, minute] = time.split(':').map(Number);
+  const desired = Date.UTC(year, month - 1, day, hour, minute);
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
+  });
+  const partsAt = (epoch) => Object.fromEntries(formatter.formatToParts(new Date(epoch)).map((part) => [part.type, part.value]));
+  const offsets = new Set();
+  for (let deltaHours = -36; deltaHours <= 36; deltaHours += 6) {
+    const candidate = desired + deltaHours * 60 * 60 * 1000;
+    const parts = partsAt(candidate);
+    const represented = Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day),
+      Number(parts.hour), Number(parts.minute), Number(parts.second));
+    offsets.add(represented - candidate);
+  }
+  return [...offsets].map((offset) => desired - offset).filter((candidate) => {
+    const parts = partsAt(candidate);
+    return Number(parts.year) === year && Number(parts.month) === month && Number(parts.day) === day &&
+      Number(parts.hour) === hour && Number(parts.minute) === minute;
+  }).sort((a, b) => a - b);
+};
+const validSchedule = (schedule) => {
+  if (!schedule || typeof schedule !== 'object') return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(schedule.eventDate) ||
+      !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(schedule.startTime) ||
+      !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(schedule.endTime) ||
+      schedule.startTime === schedule.endTime ||
+      typeof schedule.timeZone !== 'string' ||
+      !validTimeZone(schedule.timeZone)) return false;
+  const [year, month, day] = schedule.eventDate.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return false;
+  const closeDate = new Date(date);
+  if (schedule.endTime < schedule.startTime) closeDate.setUTCDate(closeDate.getUTCDate() + 1);
+  const closeDateString = closeDate.toISOString().slice(0, 10);
+  return localTimeCandidates(schedule.eventDate, schedule.startTime, schedule.timeZone).length === 1 &&
+    localTimeCandidates(closeDateString, schedule.endTime, schedule.timeZone).length === 1;
+};
+const scheduleWindow = (album, now = Date.now()) => {
+  const schedule = album.schedule;
+  if (!validSchedule(schedule)) return { canUpload: false, reason: 'not-configured' };
+  const overnight = schedule.endTime < schedule.startTime;
+  const closeDate = new Date(`${schedule.eventDate}T00:00:00Z`);
+  if (overnight) closeDate.setUTCDate(closeDate.getUTCDate() + 1);
+  const closeDateString = closeDate.toISOString().slice(0, 10);
+  const opensAt = localTimeCandidates(schedule.eventDate, schedule.startTime, schedule.timeZone)[0];
+  const closesAt = localTimeCandidates(closeDateString, schedule.endTime, schedule.timeZone)[0];
+  if (closesAt <= opensAt) {
+    return { canUpload: false, reason: 'invalid-local-time' };
+  }
+  if (now < opensAt) return { canUpload: false, reason: 'not-open', opensAt, closesAt };
+  if (now >= closesAt) return { canUpload: false, reason: 'closed', opensAt, closesAt };
+  return { canUpload: true, reason: 'open', opensAt, closesAt };
+};
+const scheduleFromBody = (body) => ({
+  eventDate: body.eventDate,
+  startTime: body.startTime,
+  endTime: body.endTime,
+  timeZone: body.timeZone,
+});
+
 const app = express();
 const adminSessions = new Map();
 app.set('trust proxy', true);
@@ -78,10 +149,20 @@ app.post('/api/admin/logout', admin, (req, res) => {
 app.get('/api/admin/albums', admin, (req, res) => res.json(load().map((a) => ({ ...a, count: fs.readdirSync(dir(a)).length }))));
 app.post('/api/admin/albums', admin, (req, res) => {
   const name = String(req.body.name || '').trim().slice(0, 100);
-  if (!name) return res.status(400).end();
-  const a = { id: rid(6), viewKey: rid(12), name, createdAt: new Date().toISOString() };
+  const schedule = scheduleFromBody(req.body);
+  if (!name || !validSchedule(schedule)) return res.status(400).json({ error: 'Completează numele, data, orele locale neambigue și fusul orar IANA valid.' });
+  const a = { id: rid(6), viewKey: rid(12), name, schedule, createdAt: new Date().toISOString() };
   fs.mkdirSync(dir(a), { recursive: true });
   const all = load(); all.push(a); save(all); res.json(a);
+});
+app.put('/api/admin/albums/:id/schedule', admin, findAlbum, (req, res) => {
+  const schedule = scheduleFromBody(req.body);
+  if (!validSchedule(schedule)) return res.status(400).json({ error: 'Completează data, orele locale neambigue și fusul orar IANA valid.' });
+  const all = load();
+  const album = all.find((item) => item.id === req.params.id);
+  album.schedule = schedule;
+  save(all);
+  res.json({ ok: true, schedule });
 });
 app.delete('/api/admin/albums/:id', admin, (req, res) => {
   const all = load(), a = all.find((x) => x.id === req.params.id);
@@ -97,14 +178,14 @@ app.get('/admin/qr/:id.png', admin, findAlbum, async (req, res) => {
 
 // Guests
 app.get('/manifest/:id.webmanifest', findAlbum, (req, res) => {
-  const albumPath = `/a/${req.album.id}`;
+  const albumPath = `/a/${req.album.id}/camera`;
   res.type('application/manifest+json').json({
     id: albumPath,
     name: `${req.album.name} | FDMS Albums`,
     short_name: req.album.name.slice(0, 24),
     description: 'Album foto și video pentru eveniment',
     start_url: albumPath,
-    scope: '/',
+    scope: albumPath,
     display: 'standalone',
     background_color: '#08080a',
     theme_color: '#08080a',
@@ -119,8 +200,21 @@ app.get('/a/:id', findAlbum, (req, res) => {
     .replace('href="/manifest.webmanifest"', `href="/manifest/${req.album.id}.webmanifest"`);
   res.type('html').send(html);
 });
-app.get('/api/a/:id', findAlbum, (req, res) => res.json({ name: req.album.name }));
-app.post('/api/a/:id/photos', findAlbum, upload.array('photos', 30), (req, res) => res.json({ ok: true, n: (req.files || []).length }));
+app.get('/a/:id/camera', findAlbum, (req, res) => {
+  const html = fs.readFileSync(path.join(PUB, 'camera.html'), 'utf8')
+    .replace('href="/manifest.webmanifest"', `href="/manifest/${req.album.id}.webmanifest"`);
+  res.type('html').send(html);
+});
+app.get('/api/a/:id', findAlbum, (req, res) => res.json({
+  name: req.album.name,
+  schedule: req.album.schedule || null,
+  ...scheduleWindow(req.album),
+}));
+app.post('/api/a/:id/photos', findAlbum, (req, res, next) => {
+  const status = scheduleWindow(req.album);
+  if (!status.canUpload) return res.status(403).json({ error: 'Încărcările sunt disponibile doar în programul evenimentului.', ...status });
+  next();
+}, upload.array('photos', 30), (req, res) => res.json({ ok: true, n: (req.files || []).length }));
 
 // Couple's private gallery
 app.get('/g/:key', byKey, (req, res) => res.sendFile(path.join(PUB, 'gallery.html')));
