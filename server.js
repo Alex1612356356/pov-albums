@@ -96,7 +96,29 @@ app.get('/admin/qr/:id.png', admin, findAlbum, async (req, res) => {
 });
 
 // Guests
-app.get('/a/:id', findAlbum, (req, res) => res.sendFile(path.join(PUB, 'guest.html')));
+app.get('/manifest/:id.webmanifest', findAlbum, (req, res) => {
+  const albumPath = `/a/${req.album.id}`;
+  res.type('application/manifest+json').json({
+    id: albumPath,
+    name: `${req.album.name} | FDMS Albums`,
+    short_name: req.album.name.slice(0, 24),
+    description: 'Album foto și video pentru eveniment',
+    start_url: albumPath,
+    scope: '/',
+    display: 'standalone',
+    background_color: '#08080a',
+    theme_color: '#08080a',
+    icons: [
+      { src: '/pwa-icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: '/pwa-icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+    ],
+  });
+});
+app.get('/a/:id', findAlbum, (req, res) => {
+  const html = fs.readFileSync(path.join(PUB, 'guest.html'), 'utf8')
+    .replace('href="/manifest.webmanifest"', `href="/manifest/${req.album.id}.webmanifest"`);
+  res.type('html').send(html);
+});
 app.get('/api/a/:id', findAlbum, (req, res) => res.json({ name: req.album.name }));
 app.post('/api/a/:id/photos', findAlbum, upload.array('photos', 30), (req, res) => res.json({ ok: true, n: (req.files || []).length }));
 

@@ -3,6 +3,14 @@
 FDMS-branded event albums: create an album, share its guest QR/link for photo
 and video uploads, and view the private gallery.
 
+The guest album page is installable as a Progressive Web App, with a shortcut
+that opens the specific album. Guests can use the live camera for consecutive
+photos and videos, or the phone's camera and photo library pickers; captured
+files upload to the album in order. Live camera, service workers, and browser
+install prompts require HTTPS (or localhost). On iPhone and iPad, use Safari's
+**Share → Add to Home Screen**. Browsers require a user action to approve an
+install; they do not allow a site to silently add a home-screen shortcut.
+
 ## TrueNAS SCALE deployment
 
 The app is packaged as a Docker image and stores albums and uploaded media in a

@@ -160,6 +160,76 @@ input::placeholder { color: #686872; }
   border-radius: 8px;
   background: var(--surface);
 }
+.guest-page main { padding-top: 20px; }
+.guest-heading { max-width: 820px; padding: clamp(40px, 7vw, 76px) 0 22px; }
+.guest-heading .eyebrow { display: flex; align-items: center; gap: 9px; }
+.guest-heading h1 { overflow-wrap: anywhere; font-size: clamp(2.4rem, 7vw, 5.2rem); }
+.guest-heading > .mut { max-width: 620px; font-weight: 300; }
+.camera-card { padding: 16px; }
+.camera-topline, .camera-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.camera-live { display: inline-flex; align-items: center; gap: 8px; color: #d0d0d5; font-size: .69rem; font-weight: 700; letter-spacing: .14em; }
+.camera-live .status-dot { width: 7px; height: 7px; }
+.camera-view {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-height: 220px;
+  max-height: min(64vh, 680px);
+  aspect-ratio: 4 / 3;
+  margin-top: 12px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    radial-gradient(ellipse at center, rgb(255 255 255 / 4%), transparent 55%),
+    #050506;
+}
+.camera-view > video { display: none; width: 100%; height: 100%; object-fit: cover; }
+.camera-view > video.is-live { display: block; }
+.camera-placeholder { padding: 24px; color: #8e8e98; text-align: center; }
+.camera-placeholder p { margin: 8px 0 0; font-size: .88rem; }
+.camera-symbol { color: #d4d4d8; font-size: 2.6rem; }
+.recording-badge { position: absolute; top: 12px; left: 12px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 5px; color: white; background: rgb(8 8 10 / 78%); font-size: .72rem; font-weight: 700; letter-spacing: .08em; }
+.recording-badge > span { width: 8px; height: 8px; border-radius: 50%; background: #ff4038; animation: recording-pulse 1s infinite; }
+.camera-controls { justify-content: center; gap: 20px; padding: 18px 8px 6px; }
+.camera-controls .shutter-button {
+  display: grid;
+  width: 62px;
+  min-height: 62px;
+  padding: 0;
+  place-items: center;
+  border: 3px solid #f4f4f5;
+  border-radius: 50%;
+  background: transparent;
+}
+.camera-controls .shutter-button:hover { background: rgb(255 255 255 / 12%); transform: scale(1.04); }
+.photo-shutter { width: 46px; height: 46px; border-radius: 50%; background: #f4f4f5; }
+.camera-controls .record-button { border-color: var(--line); color: var(--ink); background: var(--surface-raised); }
+.record-dot { width: 11px; height: 11px; border-radius: 50%; background: #ff4840; }
+.camera-controls .record-button.is-recording .record-dot { border-radius: 2px; }
+.camera-controls .record-button.is-recording { border-color: rgb(255 72 64 / 42%); background: rgb(255 72 64 / 10%); }
+.camera-status { min-height: 1.5em; margin: 10px 4px; text-align: center; }
+.camera-card .form-error { text-align: center; }
+.fallback-controls { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 13px; border-top: 1px solid var(--line); }
+.fallback-controls .btn { margin: 0 !important; }
+.camera-hint { margin: 14px 0 0; color: #72727c; font-size: .76rem; }
+.install-card { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px; }
+.install-copy { display: flex; align-items: center; gap: 12px; }
+.install-copy h2 { margin: 0 0 2px; font-family: Inter, sans-serif; font-size: .98rem; font-weight: 650; letter-spacing: 0; }
+.install-copy p { margin: 0; font-size: .8rem; }
+.install-icon { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: white; font-size: 1.2rem; }
+.install-help { margin: -7px 0 0; }
+.uploads-section { margin-top: 46px; }
+.uploads-section .section-heading { align-items: center; }
+.uploads-section h2 { font-size: clamp(1.25rem, 3vw, 1.8rem); letter-spacing: -.035em; }
+.upload-item { position: relative; }
+.upload-item img, .upload-item video { display: block; }
+.upload-badge { position: absolute; right: 7px; bottom: 7px; left: 7px; padding: 4px 7px; border-radius: 4px; color: #111; background: #f4f4f5; font-size: .62rem; font-weight: 750; letter-spacing: .08em; text-align: center; }
+.upload-item.is-uploading img, .upload-item.is-uploading video { opacity: .62; }
+.upload-item.is-failed .upload-badge { color: white; background: #bd443d; }
+.upload-item.is-uploaded .upload-badge { color: #08100b; background: #a8d5b4; }
+@keyframes recording-pulse { 50% { opacity: .4; } }
 body:not(.admin-page) main { padding-top: clamp(42px, 9vh, 92px); }
 body:not(.admin-page) h1 { font-size: clamp(2.5rem, 7vw, 4.4rem); }
 body:not(.admin-page) .card { padding: 24px; }
@@ -173,6 +243,17 @@ body:not(.admin-page) .mut { color: var(--muted); }
   .topbar-note { max-width: 165px; text-align: right; font-size: .62rem; }
   .hero { padding-top: 58px; }
   .hero .eyebrow { font-size: .63rem; }
+  .guest-page main { padding-top: 16px; }
+  .guest-heading { padding-top: 44px; }
+  .camera-card { padding: 12px; }
+  .camera-view { min-height: 200px; }
+  .camera-controls { gap: 13px; }
+  .camera-controls .shutter-button { width: 56px; min-height: 56px; }
+  .photo-shutter { width: 40px; height: 40px; }
+  .camera-controls .btn { padding-right: 11px; padding-left: 11px; font-size: .65rem; }
+  .install-card { align-items: start; flex-direction: column; gap: 13px; }
+  .install-card > .btn { width: 100%; margin: 0 !important; }
+  .uploads-section { margin-top: 34px; }
   .login-card { padding: 23px; }
   .create-controls { flex-direction: column; }
   .create-controls .btn { width: 100%; }
