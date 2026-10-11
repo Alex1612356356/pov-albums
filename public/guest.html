@@ -1,0 +1,21 @@
+<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08080a"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="/style.css"><title>Album foto</title></head><body><main>
+<header class="topbar"><a class="brand" href="/" aria-label="FIXDUOMEDIA Studios"><img src="/fdmsalb.png" alt="FIXDUOMEDIA Studios"></a><span class="topbar-note">FOTO / VIDEO <span aria-hidden="true">•</span> EVENIMENTE</span></header>
+<h1 id="title">…</h1>
+<p class="mut">Împărtășește fotografiile și videoclipurile tale. Fiecare moment ajunge direct în albumul evenimentului.</p>
+<div class="card"><label class="btn" for="cam">FĂ O FOTOGRAFIE</label>
+<input id="cam" type="file" accept="image/*" capture="environment" hidden>
+<label class="btn ghost" for="pick">ALEGE DIN GALERIE</label>
+<input id="pick" type="file" accept="image/*,video/*" multiple hidden>
+<p id="st" class="mut"></p></div><div class="grid" id="mine"></div></main>
+<script>
+const id=location.pathname.split('/')[2],st=document.getElementById('st'),mine=document.getElementById('mine');let sent=0;
+fetch('/api/a/'+id).then(r=>r.json()).then(a=>{title.textContent=a.name;document.title=a.name});
+function send(files){[...files].forEach(f=>{
+  const fd=new FormData();fd.append('photos',f);const x=new XMLHttpRequest();
+  const el=document.createElement(f.type.startsWith('video')?'video':'img');el.src=URL.createObjectURL(f);el.style.opacity=.4;mine.prepend(el);
+  x.upload.onprogress=e=>st.textContent='Se încarcă… '+Math.round(e.loaded/e.total*100)+'%';
+  x.onload=()=>{if(x.status<300){el.style.opacity=1;st.textContent='Mulțumim! '+(++sent)+' încărcat ✓'}else{st.textContent='Încărcarea a eșuat. Încearcă din nou.';el.remove()}};
+  x.onerror=()=>{st.textContent='Fără conexiune — încearcă din nou.';el.remove()};
+  x.open('POST','/api/a/'+id+'/photos');x.send(fd)})}
+cam.onchange=pick.onchange=e=>{send(e.target.files);e.target.value=''};
+</script></body></html>

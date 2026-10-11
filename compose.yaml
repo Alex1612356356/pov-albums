@@ -1,0 +1,29 @@
+services:
+  pov-albums:
+    build:
+      context: .
+    image: pov-albums:local
+    container_name: pov-albums
+    restart: unless-stopped
+    init: true
+    user: "568:568"
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATA_DIR: /app/data
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in your .env file}
+      BASE_URL: ${BASE_URL:-}
+    volumes:
+      - ${DATA_PATH:-./data}:/app/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/admin/session').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

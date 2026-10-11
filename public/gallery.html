@@ -1,0 +1,15 @@
+<!doctype html><html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#08080a"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="/style.css"><title>Galerie</title></head><body><main>
+<header class="topbar"><a class="brand" href="/" aria-label="FIXDUOMEDIA Studios"><img src="/fdmsalb.png" alt="FIXDUOMEDIA Studios"></a><span class="topbar-note">FOTO / VIDEO <span aria-hidden="true">•</span> EVENIMENTE</span></header>
+<h1 id="title">…</h1>
+<p class="row"><span class="mut" id="count"></span><a class="btn" id="zip">DESCARCĂ TOT (.ZIP)</a></p>
+<div class="grid" id="grid"></div></main>
+<script>
+const key=location.pathname.split('/')[2];
+document.getElementById('zip').href='/g/'+key+'/zip';
+fetch('/api/g/'+key).then(r=>r.json()).then(a=>{
+  title.textContent=a.name;document.title=a.name;count.textContent=a.files.length+' fotografii și videoclipuri';
+  grid.innerHTML=a.files.length?'':'<p class="mut">Încă nu sunt fotografii — vor apărea aici pe măsură ce invitații le încarcă.</p>';
+  a.files.forEach(f=>{const u='/f/'+key+'/'+f,l=document.createElement('a');l.href=u;
+    l.innerHTML=/\.(mp4|mov|webm|m4v)$/i.test(f)?'<video preload="metadata" src="'+u+'#t=0.1"></video>':'<img loading="lazy" src="'+u+'">';grid.append(l)});
+});
+</script></body></html>

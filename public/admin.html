@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#08080a">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <title>FDMS | Albume POV</title>
+</head>
+<body class="admin-page">
+  <main>
+    <header class="topbar">
+      <a class="brand" href="/admin" aria-label="FDMS — Albume POV"><img src="/fdmsalb.png" alt="FIXDUOMEDIA Studios"></a>
+      <span class="topbar-note">FOTO / VIDEO <span aria-hidden="true">•</span> EVENIMENTE</span>
+    </header>
+
+    <section class="hero">
+      <p class="eyebrow"><span class="status-dot"></span> REC <span aria-hidden="true">•</span> ALBUME DE EVENIMENT</p>
+      <h1>CAPTURĂM<br>EMOȚIA <span class="hero-outline">PURĂ.</span></h1>
+      <p class="hero-copy">Fiecare perspectivă spune o poveste. Creează un album și adună toate momentele într-un singur loc.</p>
+    </section>
+
+    <section id="loginPanel" class="login-card card" hidden>
+      <div class="login-icon" aria-hidden="true">✳</div>
+      <h2>ACCES ADMIN</h2>
+      <p class="mut">Introdu parola pentru a-ți administra albumele.</p>
+      <form id="loginForm">
+        <label for="password">PAROLĂ</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button class="btn btn-wide" type="submit">AUTENTIFICARE <span aria-hidden="true">→</span></button>
+      </form>
+      <p id="loginError" class="form-error" role="alert"></p>
+    </section>
+
+    <section id="dashboard" hidden>
+      <div class="section-heading">
+        <div><p class="eyebrow">CENTRU DE CONTROL</p><h2>Albumele tale</h2></div>
+        <button id="logout" class="btn btn-quiet" type="button">IEȘIRE</button>
+      </div>
+      <form id="createForm" class="create-card card">
+        <div class="create-copy"><span class="create-icon" aria-hidden="true">＋</span><div><h3>Album nou</h3><p class="mut">Creează un album pentru următorul tău eveniment.</p></div></div>
+        <div class="create-controls">
+          <input type="text" id="albumName" name="name" maxlength="100" placeholder="ex. Nunta Ana și Mihai" required>
+          <button class="btn" type="submit">CREEAZĂ ALBUM <span aria-hidden="true">→</span></button>
+        </div>
+        <p id="createError" class="form-error" role="alert"></p>
+      </form>
+      <div id="list" class="album-list" aria-live="polite"></div>
+    </section>
+    <p id="pageError" class="form-error page-error" role="alert"></p>
+    <footer class="footer"><span class="footer-brand">FIXDUOMEDIA STUDIOS</span> <span aria-hidden="true">•</span> FIECARE CADRU CONTEAZĂ</footer>
+  </main>
+<script>
+const loginPanel = document.getElementById('loginPanel');
+const dashboard = document.getElementById('dashboard');
+const loginForm = document.getElementById('loginForm');
+const loginError = document.getElementById('loginError');
+const createForm = document.getElementById('createForm');
+const createError = document.getElementById('createError');
+const list = document.getElementById('list');
+
+async function request(url, options) {
+  const response = await fetch(url, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+  return data;
+}
+
+function showLogin() {
+  loginPanel.hidden = false;
+  dashboard.hidden = true;
+  document.getElementById('password').focus();
+}
+
+function showDashboard() {
+  loginPanel.hidden = true;
+  dashboard.hidden = false;
+}
+
+function makeAlbumCard(album) {
+  const guestUrl = location.origin + '/a/' + album.id;
+  const galleryUrl = location.origin + '/g/' + album.viewKey;
+  const card = document.createElement('article');
+  card.className = 'album-card card';
+  card.innerHTML = '<img class="album-qr" src="/admin/qr/' + album.id + '.png" alt="QR code for guest uploads">' +
+    '<div class="album-details"><div class="album-title-row"><div><p class="eyebrow">ALBUM DE EVENIMENT</p><h3></h3></div><span class="file-count">' + album.count + ' ' + (album.count === 1 ? 'fișier' : 'fișiere') + '</span></div>' +
+    '<p class="share-label">LINK PENTRU INVITAȚI</p><a class="share-link" href="' + guestUrl + '">' + guestUrl + '</a>' +
+    '<div class="album-actions"><a class="btn btn-small" href="/admin/qr/' + album.id + '.png?download=1">DESCARCĂ QR</a>' +
+    '<a class="btn btn-small btn-outline" href="' + galleryUrl + '">DESCHIDE GALERIA</a>' +
+    '<button class="btn btn-small btn-outline" type="button" data-copy="' + galleryUrl + '">COPIAZĂ LINK PRIVAT</button>' +
+    '<button class="btn btn-small btn-danger" type="button" data-delete="' + album.id + '">ȘTERGE</button></div></div>';
+  card.querySelector('h3').textContent = album.name;
+  return card;
+}
+
+async function renderAlbums() {
+  const albums = await request('/api/admin/albums');
+  list.replaceChildren();
+  if (!albums.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state card';
+    empty.innerHTML = '<span aria-hidden="true">✳</span><h3>Prima poveste începe aici.</h3><p class="mut">Creează un album, apoi invită-i pe toți să contribuie cu propriile momente.</p>';
+    list.append(empty);
+    return;
+  }
+  albums.forEach(album => list.append(makeAlbumCard(album)));
+}
+
+async function loadDashboard() {
+  try {
+    const session = await request('/api/admin/session');
+    if (!session.authenticated) {
+      showLogin();
+      return;
+    }
+    await renderAlbums();
+    showDashboard();
+  } catch (error) {
+    document.getElementById('pageError').textContent = error.message;
+  }
+}
+
+loginForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  loginError.textContent = '';
+  const button = loginForm.querySelector('button');
+  button.disabled = true;
+  try {
+    await request('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: new FormData(loginForm).get('password') })
+    });
+    loginForm.reset();
+    await loadDashboard();
+  } catch (error) {
+    loginError.textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+
+createForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  createError.textContent = '';
+  try {
+    await request('/api/admin/albums', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: document.getElementById('albumName').value })
+    });
+    createForm.reset();
+    await renderAlbums();
+  } catch (error) {
+    createError.textContent = error.message;
+  }
+});
+
+list.addEventListener('click', async event => {
+  const button = event.target.closest('button');
+  if (!button) return;
+  if (button.dataset.copy) {
+    try {
+      await navigator.clipboard.writeText(button.dataset.copy);
+      const original = button.textContent;
+      button.textContent = 'Copied!';
+      setTimeout(() => { button.textContent = original; }, 1600);
+    } catch {
+      document.getElementById('pageError').textContent = 'Could not copy the link. Please copy it from the address bar.';
+    }
+  }
+  if (button.dataset.delete && confirm('Delete this album and all its photos and videos? This cannot be undone.')) {
+    try {
+      await request('/api/admin/albums/' + button.dataset.delete, { method: 'DELETE' });
+      await renderAlbums();
+    } catch (error) {
+      document.getElementById('pageError').textContent = error.message;
+    }
+  }
+});
+
+document.getElementById('logout').addEventListener('click', async () => {
+  try {
+    await request('/api/admin/logout', { method: 'POST' });
+    showLogin();
+  } catch (error) {
+    document.getElementById('pageError').textContent = error.message;
+  }
+});
+
+loadDashboard();
+</script>
+</body>
+</html>
