@@ -1,0 +1,17 @@
+services:
+  pov-albums:
+    image: ghcr.io/alex1612356356/pov-albums:latest
+    container_name: pov-albums
+    restart: unless-stopped
+    init: true
+    user: "568:568"
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATA_DIR: /app/data
+      ADMIN_PASSWORD: "REPLACE_WITH_64_HEX_CHAR_RANDOM_PASSWORD"
+      BASE_URL: "https://pov.fdmedia.studio"
+    volumes:
+      - /mnt/Apps/Site/Pov/Albums:/app/data

@@ -36,36 +36,23 @@ deployment, push a tag such as `v1.0.0` and use
 ### 3. Install as a Custom App
 
 In TrueNAS, open **Apps**, choose **Discover Apps** / **Install via YAML**
-(the labels may vary between SCALE versions), and use this Compose definition.
-Replace the image name, dataset path, password, and `BASE_URL` before deploying:
+(the labels may vary between SCALE versions), and paste the deployment
+definition from `truenas-app.yaml`. It is prefilled with this deployment's
+image, dataset path (`/mnt/Apps/Site/Pov/Albums`), and public URL
+(`https://pov.fdmedia.studio`). Before installing, replace
+`REPLACE_WITH_64_HEX_CHAR_RANDOM_PASSWORD` with a strong generated secret:
 
-    services:
-      pov-albums:
-        image: ghcr.io/OWNER/pov-albums:latest
-        container_name: pov-albums
-        restart: unless-stopped
-        init: true
-        user: "568:568"
-        ports:
-          - "3000:3000"
-        environment:
-          NODE_ENV: production
-          PORT: "3000"
-          DATA_DIR: /app/data
-          ADMIN_PASSWORD: "REPLACE_WITH_A_LONG_RANDOM_PASSWORD"
-          BASE_URL: "https://YOUR_PUBLIC_ALBUM_DOMAIN"
-        volumes:
-          - /mnt/YOUR_POOL/apps/pov-albums:/app/data
+    openssl rand -hex 32
 
-Replace `OWNER`, the dataset path, and the public HTTPS URL with your values.
-Use a long, unique admin password. Point the domain at your reverse proxy,
-configure a valid TLS certificate, and route requests to the NAS on port 3000.
-Do not expose the app's plain HTTP port directly to the Internet. For LAN-only
-use, set `BASE_URL` to the NAS's stable local IP and published port instead.
+Use a long, unique admin password. Point `pov.fdmedia.studio` at your reverse
+proxy, configure a valid TLS certificate, and route requests to the NAS on port
+3000. The proxy must forward the `X-Forwarded-Proto: https` header so secure
+admin cookies work. Do not expose the app's plain HTTP port directly to the
+Internet.
 
-The app listens on port `3000`. Open
-`http://YOUR_NAS_LAN_IP:3000/admin` on your network and sign in with the
-password configured as `ADMIN_PASSWORD`. No username is required.
+The app listens on port `3000`. Open `https://pov.fdmedia.studio/admin` and
+sign in with the password configured as `ADMIN_PASSWORD`. No username is
+required.
 
 ### Updating
 
