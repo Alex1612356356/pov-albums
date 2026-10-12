@@ -76,7 +76,7 @@
       <div class="media-viewer-content">
         <img id="mediaViewerImage" alt="" hidden>
         <video id="mediaViewerVideo" controls playsinline hidden></video>
-        <p id="mediaViewerName"></p>
+        <p id="mediaViewerName" aria-live="polite"></p>
         <div class="media-viewer-actions">
           <button id="deleteMedia" class="btn btn-danger" type="button">ȘTERGE FIȘIERUL</button>
         </div>
@@ -100,6 +100,7 @@ const mediaViewer = document.getElementById('mediaViewer');
 let activeMediaAlbum;
 let activeMediaFiles = [];
 let activeMediaIndex = -1;
+let mediaSwipeStart;
 
 function todayLocalDate() {
   const now = new Date();
@@ -413,6 +414,21 @@ document.getElementById('deleteMedia').addEventListener('click', deleteActiveMed
 document.getElementById('mediaViewer').addEventListener('click', event => {
   if (event.target === mediaViewer) closeMediaViewer();
 });
+mediaViewer.addEventListener('pointerdown', event => {
+  if (event.pointerType !== 'touch' || event.target.closest('button, video, .media-viewer-actions')) return;
+  mediaSwipeStart = { x: event.clientX, y: event.clientY };
+});
+mediaViewer.addEventListener('pointerup', event => {
+  if (!mediaSwipeStart) return;
+  const deltaX = event.clientX - mediaSwipeStart.x;
+  const deltaY = event.clientY - mediaSwipeStart.y;
+  mediaSwipeStart = undefined;
+  if (Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+  showMediaAt(activeMediaIndex + (deltaX < 0 ? 1 : -1));
+});
+mediaViewer.addEventListener('pointercancel', () => {
+  mediaSwipeStart = undefined;
+});
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     if (!mediaViewer.hidden) closeMediaViewer();
@@ -420,8 +436,14 @@ document.addEventListener('keydown', event => {
     return;
   }
   if (mediaViewer.hidden) return;
-  if (event.key === 'ArrowLeft') showMediaAt(activeMediaIndex - 1);
-  if (event.key === 'ArrowRight') showMediaAt(activeMediaIndex + 1);
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    showMediaAt(activeMediaIndex - 1);
+  }
+  if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    showMediaAt(activeMediaIndex + 1);
+  }
 });
 
 document.getElementById('logout').addEventListener('click', async () => {
