@@ -9,6 +9,14 @@
   <meta name="apple-mobile-web-app-title" content="FDMS Albums">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="apple-touch-icon" href="/pwa-icon-192.png">
+  <script>
+    const guestAlbumId = location.pathname.split('/')[2];
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    if (isIOS && guestAlbumId) {
+      location.replace('/a/' + encodeURIComponent(guestAlbumId) + '/camera');
+    }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
@@ -43,11 +51,6 @@ const installButton = document.getElementById('installButton');
 const installHelp = document.getElementById('installHelp');
 let installPrompt;
 
-function isIOSDevice() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-}
-
 async function loadAlbum() {
   try {
     const response = await fetch('/api/a/' + albumId);
@@ -76,11 +79,6 @@ function showSchedule(album) {
 }
 
 function showInstallHelp() {
-  if (isIOSDevice()) {
-    installButton.textContent = 'INSTRUCȚIUNI DE INSTALARE IPHONE';
-    installHelp.textContent = 'Deschide linkul în Safari. Apasă Partajare → „Adaugă la ecranul principal”, lasă „Deschide ca aplicație web” activ dacă apare și apasă „Adaugă”. Dacă ai scanat codul în alt browser, copiază linkul în Safari. Pictograma deschide direct camera evenimentului.';
-    return;
-  }
   installHelp.textContent = 'Deschide meniul browserului și alege „Instalează aplicația” sau „Adaugă pe ecranul principal”.';
 }
 
@@ -109,7 +107,6 @@ window.addEventListener('appinstalled', () => {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {
   installHelp.textContent = 'Instalarea necesită HTTPS. Deschide linkul securizat al evenimentului.';
 });
-if (isIOSDevice()) showInstallHelp();
 loadAlbum();
 </script>
 </body>

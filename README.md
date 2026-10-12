@@ -3,12 +3,15 @@
 FDMS-branded event albums: create an album, share its guest QR/link for photo
 and video uploads, and view the private gallery.
 
-The event QR code opens an install page. Once added to the phone's home screen,
-the event-specific shortcut opens a camera-first page for consecutive photos
-and videos, or the phone's camera and photo library pickers. Guests only see
-previews of files selected or captured on their own device; there is no guest
-gallery or guest-facing upload list. The couple's separate gallery link is
-private and should only be shared with them.
+On iPhone and iPad, the event QR code opens the camera page directly in the
+browser. The guest taps **Pornește camera** and grants camera access; the
+browser requires this user action and permission. On other devices, the QR
+code opens an install page; adding its shortcut to the home screen opens the
+event-specific camera for consecutive photos and videos, or the phone's camera
+and photo library pickers. Guests only see previews of files selected or
+captured on their own device; there is no guest gallery or guest-facing upload
+list. The couple's separate gallery link is private and should only be shared
+with them.
 
 Each album has one event date, a start and end time, and an IANA time zone
 (for example, `Europe/Bucharest`). Camera controls and uploads are available
@@ -18,11 +21,9 @@ skipped or repeated by a daylight-saving transition are rejected to avoid an
 ambiguous upload window.
 
 Live camera, service workers, and browser install prompts require HTTPS (or
-localhost). On iPhone and iPad, use Safari's **Share → Add to Home Screen**.
-Browsers require a user action to approve an install; they do not allow a site
-to silently add a home-screen shortcut. The installed experience uses a
-full-screen, camera-style PWA with photo/video modes and a camera switch.
-Camera and microphone capabilities depend on browser support and permissions.
+localhost). On iPhone and iPad, use Safari for camera access. The full-screen
+camera-style page provides photo/video modes and a camera switch; camera and
+microphone capabilities depend on browser support and permissions.
 
 ## TrueNAS SCALE deployment
 
