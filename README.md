@@ -20,7 +20,9 @@ ambiguous upload window.
 Live camera, service workers, and browser install prompts require HTTPS (or
 localhost). On iPhone and iPad, use Safari's **Share → Add to Home Screen**.
 Browsers require a user action to approve an install; they do not allow a site
-to silently add a home-screen shortcut.
+to silently add a home-screen shortcut. The installed experience uses a
+full-screen, camera-style PWA with photo/video modes and a camera switch.
+Camera and microphone capabilities depend on browser support and permissions.
 
 ## TrueNAS SCALE deployment
 

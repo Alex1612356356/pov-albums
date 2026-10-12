@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fdms-albums-static-v2';
+const CACHE_NAME = 'fdms-albums-static-v4';
 const APP_ASSETS = ['/style.css', '/fdmsalb.png', '/pwa-icon-192.png', '/pwa-icon-512.png'];
 
 self.addEventListener('install', event => {

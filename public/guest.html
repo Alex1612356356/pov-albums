@@ -41,8 +41,12 @@
 const albumId = location.pathname.split('/')[2];
 const installButton = document.getElementById('installButton');
 const installHelp = document.getElementById('installHelp');
-const cameraAppUrl = '/a/' + albumId + '/camera';
 let installPrompt;
+
+function isIOSDevice() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
 
 async function loadAlbum() {
   try {
@@ -72,10 +76,12 @@ function showSchedule(album) {
 }
 
 function showInstallHelp() {
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  installHelp.textContent = isIOS
-    ? 'În Safari, apasă Partajare, apoi „Adaugă la ecranul principal”. Shortcut-ul va deschide camera acestui eveniment.'
-    : 'Deschide meniul browserului și alege „Instalează aplicația” sau „Adaugă pe ecranul principal”.';
+  if (isIOSDevice()) {
+    installButton.textContent = 'INSTRUCȚIUNI DE INSTALARE IPHONE';
+    installHelp.textContent = 'Deschide linkul în Safari. Apasă Partajare → „Adaugă la ecranul principal”, lasă „Deschide ca aplicație web” activ dacă apare și apasă „Adaugă”. Dacă ai scanat codul în alt browser, copiază linkul în Safari. Pictograma deschide direct camera evenimentului.';
+    return;
+  }
+  installHelp.textContent = 'Deschide meniul browserului și alege „Instalează aplicația” sau „Adaugă pe ecranul principal”.';
 }
 
 installButton.addEventListener('click', async () => {
@@ -103,6 +109,7 @@ window.addEventListener('appinstalled', () => {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {
   installHelp.textContent = 'Instalarea necesită HTTPS. Deschide linkul securizat al evenimentului.';
 });
+if (isIOSDevice()) showInstallHelp();
 loadAlbum();
 </script>
 </body>
