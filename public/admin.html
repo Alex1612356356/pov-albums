@@ -182,6 +182,49 @@ function isVideoFile(filename) {
   return /\.(mp4|mov|webm|m4v|ogv)$/i.test(filename);
 }
 
+function renderMediaGrid() {
+  mediaGrid.replaceChildren();
+  if (!activeMediaFiles.length) {
+    const empty = document.createElement('p');
+    empty.className = 'media-gallery-empty mut';
+    empty.textContent = 'Albumul nu are încă fotografii sau videoclipuri.';
+    mediaGrid.append(empty);
+    return;
+  }
+  activeMediaFiles.forEach((filename, index) => {
+    const item = document.createElement('div');
+    item.className = 'media-thumb-wrap';
+    const button = document.createElement('button');
+    button.className = 'media-thumb';
+    button.type = 'button';
+    button.dataset.mediaIndex = String(index);
+    button.setAttribute('aria-label', (isVideoFile(filename) ? 'Deschide videoclipul ' : 'Deschide fotografia ') + (index + 1));
+    const media = document.createElement(isVideoFile(filename) ? 'video' : 'img');
+    media.src = mediaUrl(filename) + (isVideoFile(filename) ? '#t=0.1' : '');
+    if (media.tagName === 'VIDEO') {
+      media.muted = true;
+      media.playsInline = true;
+      media.preload = 'metadata';
+    } else {
+      media.loading = 'lazy';
+      media.alt = '';
+    }
+    button.append(media);
+    const badge = document.createElement('span');
+    badge.className = 'media-thumb-type';
+    badge.textContent = isVideoFile(filename) ? 'VIDEO' : 'FOTO';
+    button.append(badge);
+    const deleteButton = document.createElement('button');
+    deleteButton.className = 'media-thumb-delete';
+    deleteButton.type = 'button';
+    deleteButton.dataset.deleteMediaIndex = String(index);
+    deleteButton.setAttribute('aria-label', 'Șterge fișierul ' + (index + 1));
+    deleteButton.textContent = 'ȘTERGE';
+    item.append(button, deleteButton);
+    mediaGrid.append(item);
+  });
+}
+
 async function openMediaGallery(albumId) {
   try {
     const result = await request('/api/admin/albums/' + encodeURIComponent(albumId) + '/media');
@@ -190,37 +233,7 @@ async function openMediaGallery(albumId) {
     document.getElementById('mediaGalleryTitle').textContent = result.name;
     document.getElementById('mediaGalleryCount').textContent = result.files.length + (result.files.length === 1 ? ' fișier' : ' fișiere');
     document.getElementById('mediaGalleryError').textContent = '';
-    mediaGrid.replaceChildren();
-    if (!result.files.length) {
-      const empty = document.createElement('p');
-      empty.className = 'media-gallery-empty mut';
-      empty.textContent = 'Albumul nu are încă fotografii sau videoclipuri.';
-      mediaGrid.append(empty);
-    } else {
-      result.files.forEach((filename, index) => {
-        const button = document.createElement('button');
-        button.className = 'media-thumb';
-        button.type = 'button';
-        button.dataset.mediaIndex = String(index);
-        button.setAttribute('aria-label', (isVideoFile(filename) ? 'Deschide videoclipul ' : 'Deschide fotografia ') + (index + 1));
-        const media = document.createElement(isVideoFile(filename) ? 'video' : 'img');
-        media.src = mediaUrl(filename) + (isVideoFile(filename) ? '#t=0.1' : '');
-        if (media.tagName === 'VIDEO') {
-          media.muted = true;
-          media.playsInline = true;
-          media.preload = 'metadata';
-        } else {
-          media.loading = 'lazy';
-          media.alt = '';
-        }
-        button.append(media);
-        const badge = document.createElement('span');
-        badge.className = 'media-thumb-type';
-        badge.textContent = isVideoFile(filename) ? 'VIDEO' : 'FOTO';
-        button.append(badge);
-        mediaGrid.append(button);
-      });
-    }
+    renderMediaGrid();
     mediaGallery.hidden = false;
     document.body.classList.add('has-media-overlay');
     document.getElementById('closeMediaGallery').focus();
@@ -273,34 +286,29 @@ function showMediaAt(index) {
   mediaViewer.hidden = false;
 }
 
-async function deleteActiveMedia() {
-  if (activeMediaIndex < 0) return;
+async function deleteMediaAt(index) {
+  if (index < 0 || index >= activeMediaFiles.length) return;
   const albumId = activeMediaAlbum.id;
-  const filename = activeMediaFiles[activeMediaIndex];
+  const filename = activeMediaFiles[index];
   if (!confirm('Ștergi definitiv acest fișier? Acțiunea nu poate fi anulată.')) return;
-  const button = document.getElementById('deleteMedia');
-  button.disabled = true;
+  const button = mediaViewer.hidden
+    ? mediaGrid.querySelector(`[data-delete-media-index="${index}"]`)
+    : document.getElementById('deleteMedia');
+  if (button) button.disabled = true;
   try {
-    await request('/api/admin/albums/' + encodeURIComponent(activeMediaAlbum.id) + '/media/' + encodeURIComponent(filename), { method: 'DELETE' });
-    activeMediaFiles.splice(activeMediaIndex, 1);
+    await request('/api/admin/albums/' + encodeURIComponent(albumId) + '/media/' + encodeURIComponent(filename), { method: 'DELETE' });
+    activeMediaFiles.splice(index, 1);
     await renderAlbums();
-    if (!activeMediaFiles.length) {
-      closeMediaGallery();
-      await openMediaGallery(albumId);
-      return;
-    }
-    showMediaAt(Math.min(activeMediaIndex, activeMediaFiles.length - 1));
     document.getElementById('mediaGalleryCount').textContent = activeMediaFiles.length + (activeMediaFiles.length === 1 ? ' fișier' : ' fișiere');
-    const thumb = mediaGrid.querySelector(`[data-media-index="${activeMediaIndex}"]`);
-    if (thumb) thumb.remove();
-    mediaGrid.querySelectorAll('.media-thumb').forEach((item, index) => {
-      item.dataset.mediaIndex = String(index);
-      item.setAttribute('aria-label', (isVideoFile(activeMediaFiles[index]) ? 'Deschide videoclipul ' : 'Deschide fotografia ') + (index + 1));
-    });
+    renderMediaGrid();
+    if (!mediaViewer.hidden) {
+      if (!activeMediaFiles.length) closeMediaViewer();
+      else showMediaAt(Math.min(index, activeMediaFiles.length - 1));
+    }
   } catch (error) {
     document.getElementById('mediaGalleryError').textContent = error.message;
   } finally {
-    button.disabled = false;
+    if (button) button.disabled = false;
   }
 }
 
@@ -403,6 +411,11 @@ list.addEventListener('click', async event => {
 });
 
 mediaGrid.addEventListener('click', event => {
+  const deleteButton = event.target.closest('[data-delete-media-index]');
+  if (deleteButton) {
+    deleteMediaAt(Number(deleteButton.dataset.deleteMediaIndex));
+    return;
+  }
   const thumb = event.target.closest('[data-media-index]');
   if (thumb) showMediaAt(Number(thumb.dataset.mediaIndex));
 });
@@ -410,7 +423,7 @@ document.getElementById('closeMediaGallery').addEventListener('click', closeMedi
 document.getElementById('closeMediaViewer').addEventListener('click', closeMediaViewer);
 document.getElementById('previousMedia').addEventListener('click', () => showMediaAt(activeMediaIndex - 1));
 document.getElementById('nextMedia').addEventListener('click', () => showMediaAt(activeMediaIndex + 1));
-document.getElementById('deleteMedia').addEventListener('click', deleteActiveMedia);
+document.getElementById('deleteMedia').addEventListener('click', () => deleteMediaAt(activeMediaIndex));
 document.getElementById('mediaViewer').addEventListener('click', event => {
   if (event.target === mediaViewer) closeMediaViewer();
 });

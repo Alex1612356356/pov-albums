@@ -166,7 +166,8 @@ input::placeholder { color: #686872; }
 /* Shared guest upload and gallery components */
 .row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
-.grid a { display: block; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.grid a, .grid .gallery-thumb { display: block; width: 100%; padding: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.grid .gallery-thumb:hover { background: var(--surface); transform: none; }
 .grid img, .grid video, #mine img, #mine video {
   width: 100%;
   aspect-ratio: 1;
@@ -464,9 +465,13 @@ body.camera-app {
   border-radius: 8px;
   background: #08080a;
 }
+.media-thumb-wrap { position: relative; min-width: 0; aspect-ratio: 1; }
+.media-thumb { width: 100%; height: 100%; }
 .media-thumb:hover { border-color: rgb(255 255 255 / 60%); background: #08080a; transform: none; }
 .media-thumb img, .media-thumb video { display: block; width: 100%; height: 100%; object-fit: cover; }
 .media-thumb-type { position: absolute; right: 7px; bottom: 7px; padding: 3px 7px; border-radius: 999px; color: #fff; background: rgb(0 0 0 / 65%); font-size: .58rem; font-weight: 750; letter-spacing: .08em; }
+.media-thumb-delete { position: absolute; top: 6px; right: 6px; min-height: 32px; padding: 5px 8px; border: 1px solid rgb(255 170 163 / 48%); border-radius: 6px; color: #fff; background: rgb(105 28 28 / 88%); font-size: .6rem; font-weight: 750; letter-spacing: .04em; }
+.media-thumb-delete:hover { color: #fff; background: #a63430; transform: none; }
 .media-gallery-empty { grid-column: 1 / -1; padding: 28px 12px; text-align: center; }
 .media-viewer {
   position: fixed;

@@ -13,9 +13,12 @@ captured on their own device; there is no guest gallery or guest-facing upload
 list. The couple's separate gallery link is private and should only be shared
 with them.
 
-Admins can open **Gestionează fișierele** on an album card to browse its media
-as thumbnails, open a full-size viewer, move through photos and videos, and
-delete individual files. Media management is protected by the admin session.
+The private couple's gallery opens each photo or video in a full-size viewer
+with previous/next arrows, keyboard navigation, and touch swipes. Admins can
+open **Gestionează fișierele** on an album card to browse its media as
+thumbnails, open the same kind of viewer, and delete individual files directly
+from a thumbnail or the viewer. Media management is protected by the admin
+session.
 
 Each album has one event date, a start and end time, and an IANA time zone
 (for example, `Europe/Bucharest`). Camera controls and uploads are available

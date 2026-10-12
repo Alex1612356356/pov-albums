@@ -2,14 +2,135 @@
 <header class="topbar"><a class="brand" href="/" aria-label="FIXDUOMEDIA Studios"><img src="/fdmsalb.png" alt="FIXDUOMEDIA Studios"></a><span class="topbar-note">FOTO / VIDEO <span aria-hidden="true">•</span> EVENIMENTE</span></header>
 <h1 id="title">…</h1>
 <p class="row"><span class="mut" id="count"></span><a class="btn" id="zip">DESCARCĂ TOT (.ZIP)</a></p>
-<div class="grid" id="grid"></div></main>
+<div class="grid" id="grid"></div>
+<section id="galleryViewer" class="media-viewer" aria-label="Vizualizare fotografie" aria-modal="true" role="dialog" hidden>
+  <button id="closeGalleryViewer" class="media-viewer-close" type="button" aria-label="Închide">×</button>
+  <button id="previousGalleryMedia" class="media-viewer-nav" type="button" aria-label="Fotografia anterioară">‹</button>
+  <div class="media-viewer-content">
+    <img id="galleryViewerImage" alt="" hidden>
+    <video id="galleryViewerVideo" controls playsinline hidden></video>
+    <p id="galleryViewerCount" aria-live="polite"></p>
+  </div>
+  <button id="nextGalleryMedia" class="media-viewer-nav" type="button" aria-label="Fotografia următoare">›</button>
+</section>
+</main>
 <script>
-const key=location.pathname.split('/')[2];
-document.getElementById('zip').href='/g/'+key+'/zip';
-fetch('/api/g/'+key).then(r=>r.json()).then(a=>{
-  title.textContent=a.name;document.title=a.name;count.textContent=a.files.length+' fotografii și videoclipuri';
-  grid.innerHTML=a.files.length?'':'<p class="mut">Încă nu sunt fotografii — vor apărea aici pe măsură ce invitații le încarcă.</p>';
-  a.files.forEach(f=>{const u='/f/'+key+'/'+f,l=document.createElement('a');l.href=u;
-    l.innerHTML=/\.(mp4|mov|webm|m4v)$/i.test(f)?'<video preload="metadata" src="'+u+'#t=0.1"></video>':'<img loading="lazy" src="'+u+'">';grid.append(l)});
+const key = location.pathname.split('/')[2];
+const grid = document.getElementById('grid');
+const viewer = document.getElementById('galleryViewer');
+const viewerImage = document.getElementById('galleryViewerImage');
+const viewerVideo = document.getElementById('galleryViewerVideo');
+let files = [];
+let activeIndex = -1;
+let swipeStart;
+
+function isVideoFile(filename) {
+  return /\.(mp4|mov|webm|m4v|ogv)$/i.test(filename);
+}
+
+function showGalleryMedia(index) {
+  if (!files.length) return;
+  activeIndex = (index + files.length) % files.length;
+  const filename = files[activeIndex];
+  const url = '/f/' + encodeURIComponent(key) + '/' + encodeURIComponent(filename);
+  viewerVideo.pause();
+  viewerVideo.removeAttribute('src');
+  viewerImage.hidden = isVideoFile(filename);
+  viewerVideo.hidden = !isVideoFile(filename);
+  if (isVideoFile(filename)) {
+    viewerVideo.src = url;
+    viewerVideo.load();
+  } else {
+    viewerImage.src = url;
+    viewerImage.alt = 'Fotografie ' + (activeIndex + 1);
+  }
+  document.getElementById('galleryViewerCount').textContent = (activeIndex + 1) + ' / ' + files.length;
+  document.getElementById('previousGalleryMedia').disabled = files.length < 2;
+  document.getElementById('nextGalleryMedia').disabled = files.length < 2;
+  viewer.hidden = false;
+}
+
+function closeGalleryViewer() {
+  viewerVideo.pause();
+  viewerVideo.removeAttribute('src');
+  viewerVideo.load();
+  viewerImage.removeAttribute('src');
+  viewer.hidden = true;
+  activeIndex = -1;
+}
+
+document.getElementById('zip').href = '/g/' + encodeURIComponent(key) + '/zip';
+fetch('/api/g/' + encodeURIComponent(key)).then(response => {
+  if (!response.ok) throw new Error('Nu s-a putut încărca galeria.');
+  return response.json();
+}).then(album => {
+  files = album.files;
+  document.getElementById('title').textContent = album.name;
+  document.title = album.name;
+  document.getElementById('count').textContent = files.length + ' fotografii și videoclipuri';
+  if (!files.length) {
+    const empty = document.createElement('p');
+    empty.className = 'mut';
+    empty.textContent = 'Încă nu sunt fotografii — vor apărea aici pe măsură ce invitații le încarcă.';
+    grid.append(empty);
+    return;
+  }
+  files.forEach((filename, index) => {
+    const button = document.createElement('button');
+    button.className = 'gallery-thumb';
+    button.type = 'button';
+    button.setAttribute('aria-label', 'Deschide fotografia ' + (index + 1));
+    button.addEventListener('click', () => showGalleryMedia(index));
+    const media = document.createElement(isVideoFile(filename) ? 'video' : 'img');
+    media.src = '/f/' + encodeURIComponent(key) + '/' + encodeURIComponent(filename) + (isVideoFile(filename) ? '#t=0.1' : '');
+    if (media.tagName === 'VIDEO') {
+      media.preload = 'metadata';
+      media.muted = true;
+      media.playsInline = true;
+    } else {
+      media.loading = 'lazy';
+      media.alt = '';
+    }
+    button.append(media);
+    grid.append(button);
+  });
+}).catch(error => {
+  const message = document.createElement('p');
+  message.className = 'form-error';
+  message.setAttribute('role', 'alert');
+  message.textContent = error.message;
+  grid.append(message);
+});
+
+document.getElementById('closeGalleryViewer').addEventListener('click', closeGalleryViewer);
+document.getElementById('previousGalleryMedia').addEventListener('click', () => showGalleryMedia(activeIndex - 1));
+document.getElementById('nextGalleryMedia').addEventListener('click', () => showGalleryMedia(activeIndex + 1));
+viewer.addEventListener('click', event => {
+  if (event.target === viewer) closeGalleryViewer();
+});
+viewer.addEventListener('pointerdown', event => {
+  if (event.pointerType !== 'touch' || event.target.closest('button, video')) return;
+  swipeStart = { x: event.clientX, y: event.clientY };
+});
+viewer.addEventListener('pointerup', event => {
+  if (!swipeStart) return;
+  const deltaX = event.clientX - swipeStart.x;
+  const deltaY = event.clientY - swipeStart.y;
+  swipeStart = undefined;
+  if (Math.abs(deltaX) < 48 || Math.abs(deltaX) < Math.abs(deltaY) * 1.25) return;
+  showGalleryMedia(activeIndex + (deltaX < 0 ? 1 : -1));
+});
+viewer.addEventListener('pointercancel', () => { swipeStart = undefined; });
+document.addEventListener('keydown', event => {
+  if (viewer.hidden) return;
+  if (event.key === 'Escape') closeGalleryViewer();
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    showGalleryMedia(activeIndex - 1);
+  }
+  if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    showGalleryMedia(activeIndex + 1);
+  }
 });
 </script></body></html>
