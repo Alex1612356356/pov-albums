@@ -422,6 +422,75 @@ body.camera-app {
 .moments-sheet-card .grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
 .moments-sheet-card .grid a { position: relative; }
 .moments-sheet-card .grid img, .moments-sheet-card .grid video { border-radius: 7px; }
+.has-media-overlay { overflow: hidden; }
+.media-gallery {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(env(safe-area-inset-top), 16px) 16px max(env(safe-area-inset-bottom), 16px);
+  background: rgb(0 0 0 / 78%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.media-gallery-panel {
+  width: min(100%, 1040px);
+  max-height: 100%;
+  overflow: auto;
+  padding: clamp(16px, 3vw, 28px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #111116;
+  box-shadow: 0 24px 90px rgb(0 0 0 / 55%);
+}
+.media-gallery-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.media-gallery-header .eyebrow { margin-bottom: 4px; }
+.media-gallery-header h2 { font-size: clamp(1.4rem, 4vw, 2.2rem); overflow-wrap: anywhere; }
+.media-gallery-header .mut { margin: 5px 0 0; font-size: .8rem; }
+.media-gallery-header .btn { flex: 0 0 auto; }
+.media-gallery .form-error { margin: 0; }
+.media-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(135px, 1fr)); gap: 10px; margin-top: 12px; }
+.media-thumb {
+  position: relative;
+  display: block;
+  min-width: 0;
+  min-height: 0;
+  aspect-ratio: 1;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #08080a;
+}
+.media-thumb:hover { border-color: rgb(255 255 255 / 60%); background: #08080a; transform: none; }
+.media-thumb img, .media-thumb video { display: block; width: 100%; height: 100%; object-fit: cover; }
+.media-thumb-type { position: absolute; right: 7px; bottom: 7px; padding: 3px 7px; border-radius: 999px; color: #fff; background: rgb(0 0 0 / 65%); font-size: .58rem; font-weight: 750; letter-spacing: .08em; }
+.media-gallery-empty { grid-column: 1 / -1; padding: 28px 12px; text-align: center; }
+.media-viewer {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) 64px;
+  align-items: center;
+  justify-items: center;
+  padding: max(env(safe-area-inset-top), 16px) 12px max(env(safe-area-inset-bottom), 16px);
+  color: #fff;
+  background: rgb(0 0 0 / 94%);
+}
+.media-viewer-close { position: absolute; top: max(env(safe-area-inset-top), 12px); right: 14px; z-index: 1; width: 44px; min-height: 44px; padding: 0; border: 1px solid rgb(255 255 255 / 18%); border-radius: 50%; color: #fff; background: #222; font-size: 1.7rem; font-weight: 400; }
+.media-viewer-close:hover { color: #fff; background: #38383d; transform: none; }
+.media-viewer-nav { width: 48px; min-height: 48px; padding: 0; border: 1px solid rgb(255 255 255 / 18%); border-radius: 50%; color: #fff; background: #222; font-size: 2rem; font-weight: 300; }
+.media-viewer-nav:hover { color: #fff; background: #38383d; transform: none; }
+.media-viewer-nav:disabled { visibility: hidden; }
+.media-viewer-content { display: flex; width: 100%; height: 100%; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+.media-viewer-content > img, .media-viewer-content > video { display: block; width: 100%; max-width: min(100%, 1100px); max-height: calc(100% - 105px); object-fit: contain; }
+.media-viewer-content > img[hidden], .media-viewer-content > video[hidden] { display: none; }
+.media-viewer-content > p { margin: 0; color: #bcbcc4; font-size: .8rem; }
+.media-viewer-actions { display: flex; justify-content: center; }
+.media-viewer-actions .btn { margin: 0 !important; }
 @media (min-width: 700px) {
   .camera-shell { height: min(100dvh, 980px); margin: auto; border-right: 1px solid #1c1c20; border-left: 1px solid #1c1c20; }
   body.camera-app { display: flex; }
@@ -433,4 +502,11 @@ body.camera-app {
   .camera-controls .shutter-button { width: 58px; min-height: 58px; }
   .photo-shutter, .video-shutter-inner { width: 46px; height: 46px; }
   .video-shutter.is-recording .video-shutter-inner { width: 24px; height: 24px; }
+}
+@media (max-width: 620px) {
+  .media-gallery { align-items: end; padding: 8px 0 0; }
+  .media-gallery-panel { width: 100%; max-height: 94%; padding: 18px 14px max(env(safe-area-inset-bottom), 18px); border-radius: 18px 18px 0 0; }
+  .media-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .media-viewer { grid-template-columns: 42px minmax(0, 1fr) 42px; gap: 2px; padding-right: 4px; padding-left: 4px; }
+  .media-viewer-nav { width: 38px; min-height: 42px; }
 }

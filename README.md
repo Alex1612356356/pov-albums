@@ -13,6 +13,10 @@ captured on their own device; there is no guest gallery or guest-facing upload
 list. The couple's separate gallery link is private and should only be shared
 with them.
 
+Admins can open **Gestionează fișierele** on an album card to browse its media
+as thumbnails, open a full-size viewer, move through photos and videos, and
+delete individual files. Media management is protected by the admin session.
+
 Each album has one event date, a start and end time, and an IANA time zone
 (for example, `Europe/Bucharest`). Camera controls and uploads are available
 only during that interval; the server enforces the same schedule. An end time

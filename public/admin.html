@@ -60,6 +60,29 @@
       </form>
       <div id="list" class="album-list" aria-live="polite"></div>
     </section>
+    <section id="mediaGallery" class="media-gallery" aria-label="Galeria albumului" hidden>
+      <div class="media-gallery-panel">
+        <div class="media-gallery-header">
+          <div><p class="eyebrow">GALERIE ADMIN</p><h2 id="mediaGalleryTitle">Album</h2><p id="mediaGalleryCount" class="mut"></p></div>
+          <button id="closeMediaGallery" class="btn btn-quiet" type="button">ÎNCHIDE</button>
+        </div>
+        <p id="mediaGalleryError" class="form-error" role="alert"></p>
+        <div id="mediaGrid" class="media-grid"></div>
+      </div>
+    </section>
+    <section id="mediaViewer" class="media-viewer" aria-label="Vizualizare fișier" aria-modal="true" role="dialog" hidden>
+      <button id="closeMediaViewer" class="media-viewer-close" type="button" aria-label="Închide">×</button>
+      <button id="previousMedia" class="media-viewer-nav media-viewer-previous" type="button" aria-label="Fișierul anterior">‹</button>
+      <div class="media-viewer-content">
+        <img id="mediaViewerImage" alt="" hidden>
+        <video id="mediaViewerVideo" controls playsinline hidden></video>
+        <p id="mediaViewerName"></p>
+        <div class="media-viewer-actions">
+          <button id="deleteMedia" class="btn btn-danger" type="button">ȘTERGE FIȘIERUL</button>
+        </div>
+      </div>
+      <button id="nextMedia" class="media-viewer-nav media-viewer-next" type="button" aria-label="Fișierul următor">›</button>
+    </section>
     <p id="pageError" class="form-error page-error" role="alert"></p>
     <footer class="footer"><span class="footer-brand">FIXDUOMEDIA STUDIOS</span> <span aria-hidden="true">•</span> FIECARE CADRU CONTEAZĂ</footer>
   </main>
@@ -71,6 +94,12 @@ const loginError = document.getElementById('loginError');
 const createForm = document.getElementById('createForm');
 const createError = document.getElementById('createError');
 const list = document.getElementById('list');
+const mediaGallery = document.getElementById('mediaGallery');
+const mediaGrid = document.getElementById('mediaGrid');
+const mediaViewer = document.getElementById('mediaViewer');
+let activeMediaAlbum;
+let activeMediaFiles = [];
+let activeMediaIndex = -1;
 
 function todayLocalDate() {
   const now = new Date();
@@ -85,6 +114,7 @@ async function request(url, options) {
 }
 
 function showLogin() {
+  closeMediaGallery();
   loginPanel.hidden = false;
   dashboard.hidden = true;
   document.getElementById('password').focus();
@@ -105,6 +135,7 @@ function makeAlbumCard(album) {
     '<p class="schedule-summary"></p>' +
     '<p class="share-label">LINK PENTRU INVITAȚI</p><a class="share-link" href="' + guestUrl + '">' + guestUrl + '</a>' +
     '<div class="album-actions"><a class="btn btn-small" href="/admin/qr/' + album.id + '.png?download=1">DESCARCĂ QR</a>' +
+    '<button class="btn btn-small btn-outline" type="button" data-gallery="' + album.id + '">GESTIONEAZĂ FIȘIERELE (' + album.count + ')</button>' +
     '<a class="btn btn-small btn-outline" href="' + galleryUrl + '">DESCHIDE GALERIA</a>' +
     '<button class="btn btn-small btn-outline" type="button" data-copy="' + galleryUrl + '">COPIAZĂ LINK PRIVAT</button>' +
     '<button class="btn btn-small btn-danger" type="button" data-delete="' + album.id + '">ȘTERGE</button></div>' +
@@ -140,6 +171,136 @@ async function renderAlbums() {
     return;
   }
   albums.forEach(album => list.append(makeAlbumCard(album)));
+}
+
+function mediaUrl(filename) {
+  return '/admin/media/' + encodeURIComponent(activeMediaAlbum.id) + '/' + encodeURIComponent(filename);
+}
+
+function isVideoFile(filename) {
+  return /\.(mp4|mov|webm|m4v|ogv)$/i.test(filename);
+}
+
+async function openMediaGallery(albumId) {
+  try {
+    const result = await request('/api/admin/albums/' + encodeURIComponent(albumId) + '/media');
+    activeMediaAlbum = { id: albumId, name: result.name };
+    activeMediaFiles = result.files;
+    document.getElementById('mediaGalleryTitle').textContent = result.name;
+    document.getElementById('mediaGalleryCount').textContent = result.files.length + (result.files.length === 1 ? ' fișier' : ' fișiere');
+    document.getElementById('mediaGalleryError').textContent = '';
+    mediaGrid.replaceChildren();
+    if (!result.files.length) {
+      const empty = document.createElement('p');
+      empty.className = 'media-gallery-empty mut';
+      empty.textContent = 'Albumul nu are încă fotografii sau videoclipuri.';
+      mediaGrid.append(empty);
+    } else {
+      result.files.forEach((filename, index) => {
+        const button = document.createElement('button');
+        button.className = 'media-thumb';
+        button.type = 'button';
+        button.dataset.mediaIndex = String(index);
+        button.setAttribute('aria-label', (isVideoFile(filename) ? 'Deschide videoclipul ' : 'Deschide fotografia ') + (index + 1));
+        const media = document.createElement(isVideoFile(filename) ? 'video' : 'img');
+        media.src = mediaUrl(filename) + (isVideoFile(filename) ? '#t=0.1' : '');
+        if (media.tagName === 'VIDEO') {
+          media.muted = true;
+          media.playsInline = true;
+          media.preload = 'metadata';
+        } else {
+          media.loading = 'lazy';
+          media.alt = '';
+        }
+        button.append(media);
+        const badge = document.createElement('span');
+        badge.className = 'media-thumb-type';
+        badge.textContent = isVideoFile(filename) ? 'VIDEO' : 'FOTO';
+        button.append(badge);
+        mediaGrid.append(button);
+      });
+    }
+    mediaGallery.hidden = false;
+    document.body.classList.add('has-media-overlay');
+    document.getElementById('closeMediaGallery').focus();
+  } catch (error) {
+    document.getElementById('pageError').textContent = error.message;
+  }
+}
+
+function closeMediaViewer() {
+  const image = document.getElementById('mediaViewerImage');
+  const video = document.getElementById('mediaViewerVideo');
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+  image.removeAttribute('src');
+  mediaViewer.hidden = true;
+  activeMediaIndex = -1;
+}
+
+function closeMediaGallery() {
+  closeMediaViewer();
+  mediaGallery.hidden = true;
+  mediaGrid.replaceChildren();
+  document.body.classList.remove('has-media-overlay');
+  activeMediaAlbum = undefined;
+  activeMediaFiles = [];
+}
+
+function showMediaAt(index) {
+  if (!activeMediaFiles.length) return;
+  activeMediaIndex = (index + activeMediaFiles.length) % activeMediaFiles.length;
+  const filename = activeMediaFiles[activeMediaIndex];
+  const image = document.getElementById('mediaViewerImage');
+  const video = document.getElementById('mediaViewerVideo');
+  const url = mediaUrl(filename);
+  video.pause();
+  video.removeAttribute('src');
+  image.hidden = isVideoFile(filename);
+  video.hidden = !isVideoFile(filename);
+  if (isVideoFile(filename)) {
+    video.src = url;
+    video.load();
+  } else {
+    image.src = url;
+    image.alt = 'Fotografie ' + (activeMediaIndex + 1) + ' din ' + activeMediaAlbum.name;
+  }
+  document.getElementById('mediaViewerName').textContent = (activeMediaIndex + 1) + ' / ' + activeMediaFiles.length;
+  document.getElementById('previousMedia').disabled = activeMediaFiles.length < 2;
+  document.getElementById('nextMedia').disabled = activeMediaFiles.length < 2;
+  mediaViewer.hidden = false;
+}
+
+async function deleteActiveMedia() {
+  if (activeMediaIndex < 0) return;
+  const albumId = activeMediaAlbum.id;
+  const filename = activeMediaFiles[activeMediaIndex];
+  if (!confirm('Ștergi definitiv acest fișier? Acțiunea nu poate fi anulată.')) return;
+  const button = document.getElementById('deleteMedia');
+  button.disabled = true;
+  try {
+    await request('/api/admin/albums/' + encodeURIComponent(activeMediaAlbum.id) + '/media/' + encodeURIComponent(filename), { method: 'DELETE' });
+    activeMediaFiles.splice(activeMediaIndex, 1);
+    await renderAlbums();
+    if (!activeMediaFiles.length) {
+      closeMediaGallery();
+      await openMediaGallery(albumId);
+      return;
+    }
+    showMediaAt(Math.min(activeMediaIndex, activeMediaFiles.length - 1));
+    document.getElementById('mediaGalleryCount').textContent = activeMediaFiles.length + (activeMediaFiles.length === 1 ? ' fișier' : ' fișiere');
+    const thumb = mediaGrid.querySelector(`[data-media-index="${activeMediaIndex}"]`);
+    if (thumb) thumb.remove();
+    mediaGrid.querySelectorAll('.media-thumb').forEach((item, index) => {
+      item.dataset.mediaIndex = String(index);
+      item.setAttribute('aria-label', (isVideoFile(activeMediaFiles[index]) ? 'Deschide videoclipul ' : 'Deschide fotografia ') + (index + 1));
+    });
+  } catch (error) {
+    document.getElementById('mediaGalleryError').textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function loadDashboard() {
@@ -216,6 +377,10 @@ list.addEventListener('submit', async event => {
 list.addEventListener('click', async event => {
   const button = event.target.closest('button');
   if (!button) return;
+  if (button.dataset.gallery) {
+    await openMediaGallery(button.dataset.gallery);
+    return;
+  }
   if (button.dataset.copy) {
     try {
       await navigator.clipboard.writeText(button.dataset.copy);
@@ -234,6 +399,29 @@ list.addEventListener('click', async event => {
       document.getElementById('pageError').textContent = error.message;
     }
   }
+});
+
+mediaGrid.addEventListener('click', event => {
+  const thumb = event.target.closest('[data-media-index]');
+  if (thumb) showMediaAt(Number(thumb.dataset.mediaIndex));
+});
+document.getElementById('closeMediaGallery').addEventListener('click', closeMediaGallery);
+document.getElementById('closeMediaViewer').addEventListener('click', closeMediaViewer);
+document.getElementById('previousMedia').addEventListener('click', () => showMediaAt(activeMediaIndex - 1));
+document.getElementById('nextMedia').addEventListener('click', () => showMediaAt(activeMediaIndex + 1));
+document.getElementById('deleteMedia').addEventListener('click', deleteActiveMedia);
+document.getElementById('mediaViewer').addEventListener('click', event => {
+  if (event.target === mediaViewer) closeMediaViewer();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    if (!mediaViewer.hidden) closeMediaViewer();
+    else if (!mediaGallery.hidden) closeMediaGallery();
+    return;
+  }
+  if (mediaViewer.hidden) return;
+  if (event.key === 'ArrowLeft') showMediaAt(activeMediaIndex - 1);
+  if (event.key === 'ArrowRight') showMediaAt(activeMediaIndex + 1);
 });
 
 document.getElementById('logout').addEventListener('click', async () => {

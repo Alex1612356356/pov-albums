@@ -169,6 +169,29 @@ app.delete('/api/admin/albums/:id', admin, (req, res) => {
   if (a) { fs.rmSync(dir(a), { recursive: true, force: true }); save(all.filter((x) => x !== a)); }
   res.end();
 });
+app.get('/api/admin/albums/:id/media', admin, findAlbum, (req, res) => {
+  const files = fs.readdirSync(dir(req.album), { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name)
+    .sort()
+    .reverse();
+  res.json({ name: req.album.name, files });
+});
+app.delete('/api/admin/albums/:id/media/:file', admin, findAlbum, (req, res) => {
+  const filename = req.params.file;
+  if (!filename || path.basename(filename) !== filename) return res.status(400).json({ error: 'Numele fișierului nu este valid.' });
+  const filepath = path.join(dir(req.album), filename);
+  if (!fs.existsSync(filepath) || !fs.statSync(filepath).isFile()) return res.status(404).json({ error: 'Fișierul nu a fost găsit.' });
+  fs.unlinkSync(filepath);
+  res.json({ ok: true });
+});
+app.get('/admin/media/:id/:file', admin, findAlbum, (req, res) => {
+  const filename = req.params.file;
+  if (!filename || path.basename(filename) !== filename) return res.status(400).end();
+  res.sendFile(path.join(dir(req.album), filename), (error) => {
+    if (error && !res.headersSent) res.status(error.statusCode || 404).end();
+  });
+});
 app.get('/admin/qr/:id.png', admin, findAlbum, async (req, res) => {
   const png = await QRCode.toBuffer(`${base(req)}/a/${req.album.id}`, { width: 900, margin: 2 });
   res.type('png');
